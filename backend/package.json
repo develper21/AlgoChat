@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Real-time chat application backend with Socket.IO",
   "keywords": ["chat", "realtime", "socket.io", "express", "mongodb"],
+  "author": "AlgoChat Team",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
