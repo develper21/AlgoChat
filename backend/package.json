@@ -6,6 +6,7 @@
   "description": "Real-time chat application backend with Socket.IO",
   "keywords": ["chat", "realtime", "socket.io", "express", "mongodb"],
   "author": "AlgoChat Team",
+  "license": "MIT",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
