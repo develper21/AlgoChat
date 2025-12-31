@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "description": "Real-time chat application backend with Socket.IO",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
