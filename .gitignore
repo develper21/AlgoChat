@@ -1,9 +1,0 @@
-node_modules
-.env
-.env.*
-frontend/dist
-backend/dist
-backend/.env
-frontend/.env
-coverage
-uploads/
