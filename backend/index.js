@@ -17,16 +17,30 @@ import searchRoutes from './routes/search.js';
 import profileRoutes from './routes/profile.js';
 import twoFactorRoutes from './routes/twoFactor.js';
 import meetingRoutes from './routes/meetings.js';
+import adminRoutes from './routes/admin.js';
+import moderationRoutes from './routes/moderation.js';
+import dataRoutes from './routes/data.js';
+import ssoRoutes from './routes/sso.js';
+import aiRoutes from './routes/ai.js';
+import analyticsRoutes from './routes/analytics.js';
 import authMiddleware from './middleware/auth.js';
+import { auditMiddleware } from './middleware/audit.js';
+import performanceMonitor from './middleware/performanceMonitor.js';
+import cacheService from './services/cacheService.js';
+import Logger from './services/logger.js';
+import { specs, swaggerUi } from './config/swagger.js';
 import Message from './models/Message.js';
 import Room from './models/Room.js';
 import Meeting from './models/Meeting.js';
 import MeetingChat from './models/MeetingChat.js';
 import User from './models/User.js';
+import Role from './models/Role.js';
 import { sendPushNotifications } from './utils/push.js';
 import { formatMessage } from './utils/messageFormatter.js';
 import { errorHandler } from './utils/errorHandler.js';
 import messageScheduler from './utils/scheduler.js';
+import aiService from './services/aiService.js';
+import analyticsService from './services/analyticsService.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -41,8 +55,35 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 app.use(generalLimiter);
+app.use(performanceMonitor.requestMonitor());
+app.use(auditMiddleware({
+  excludePaths: ['/health', '/metrics', '/api/sso/health'],
+  excludeMethods: ['GET'],
+  logBody: false,
+  logHeaders: false
+}));
 
 app.get('/', (_req, res) => res.send('Algonive Real-Time Chat API'));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  const health = performanceMonitor.healthCheck();
+  res.status(health.status === 'healthy' ? 200 : 503).json(health);
+});
+
+// Metrics endpoint
+app.get('/metrics', (req, res) => {
+  const metrics = performanceMonitor.getPerformanceReport();
+  res.json(metrics);
+});
+
+// API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'AlgoChat API Documentation'
+}));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', authMiddleware, roomRoutes);
 app.use('/api/messages', authMiddleware, messageRoutes);
@@ -52,6 +93,12 @@ app.use('/api/search', authMiddleware, searchRoutes);
 app.use('/api/profile', authMiddleware, profileRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/meetings', authMiddleware, meetingRoutes);
+app.use('/api/admin', authMiddleware, adminRoutes);
+app.use('/api/moderation', moderationRoutes);
+app.use('/api/data', authMiddleware, dataRoutes);
+app.use('/api/sso', ssoRoutes);
+app.use('/api/ai', authMiddleware, aiRoutes);
+app.use('/api/analytics', authMiddleware, analyticsRoutes);
 
 // 404 handler
 app.use('*', (req, res, next) => {
@@ -67,15 +114,32 @@ app.use(errorHandler);
 
 const startServer = async () => {
   try {
+    // Initialize cache
+    await cacheService.connect();
+    Logger.info('Cache service initialized');
+    
+    // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('MongoDB connected');
+    Logger.info('MongoDB connected');
+
+    // Initialize system roles
+    await User.createSystemRoles();
+    Logger.info('System roles initialized');
 
     // Reschedule any pending scheduled messages
     await messageScheduler.reschedulePendingMessages();
+    
+    // Start performance monitoring
+    performanceMonitor.startMonitoring();
+    performanceMonitor.socketMonitor(io);
+    Logger.info('Performance monitoring started');
 
-    server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    server.listen(PORT, () => {
+      Logger.systemEvent('server_started', { port: PORT, env: process.env.NODE_ENV });
+      console.log(`Server running on port ${PORT}`);
+    });
   } catch (error) {
-    console.error('Mongo connection error', error.message);
+    Logger.error('Failed to start server', error);
     process.exit(1);
   }
 };
@@ -98,8 +162,22 @@ const emitRoomUpdate = (roomId, event, payload) => {
   io.to(roomId.toString()).emit(event, payload);
 };
 
+// Track connection analytics
 io.on('connection', (socket) => {
   const userId = socket.user._id.toString();
+  const sessionId = socket.id;
+  
+  // Track user login/connection
+  analyticsService.trackUserLogin(
+    userId,
+    sessionId,
+    socket.handshake.device,
+    socket.handshake.address,
+    socket.handshake.headers['user-agent']
+  );
+  
+  // Update real-time connection count
+  analyticsService.updateConnectionCount(io.engine.clientsCount);
 
   // Update user online status
   const updateUserOnlineStatus = async (isOnline) => {
@@ -133,6 +211,9 @@ io.on('connection', (socket) => {
     if (!isMember) return;
     socket.join(roomId);
     
+    // Track room join event
+    analyticsService.trackRoomJoined(userId, roomId);
+    
     // Send current room members' online status
     socket.emit('roomMembersStatus', room.members);
   });
@@ -149,13 +230,62 @@ io.on('connection', (socket) => {
       const isMember = room.members.some((member) => member._id.toString() === userId);
       if (!isMember) return;
 
+      // AI-powered message analysis
+      let analysisResult = null;
+      let finalText = text;
+      
+      if (text && text.trim()) {
+        // Get user history for spam detection
+        const userHistory = await Message.find({ sender: userId })
+          .sort({ createdAt: -1 })
+          .limit(20);
+        
+        // Run spam detection
+        const spamScore = await aiService.detectSpam(text, userHistory);
+        
+        // Run content moderation
+        const moderation = await aiService.moderateContent(text);
+        
+        analysisResult = {
+          spamScore,
+          isSpam: spamScore > 0.7,
+          moderation,
+          shouldBlock: spamScore > 0.7 || !moderation.isAppropriate
+        };
+        
+        // Use filtered text if content was moderated
+        if (!moderation.isAppropriate && moderation.filteredText !== text) {
+          finalText = moderation.filteredText;
+        }
+        
+        // Block message if it's spam or highly inappropriate
+        if (analysisResult.shouldBlock) {
+          socket.emit('messageBlocked', {
+            reason: spamScore > 0.7 ? 'spam' : 'inappropriate_content',
+            originalText: text,
+            filteredText: finalText
+          });
+          return;
+        }
+      }
+
       const message = await Message.create({
         room: roomId,
         sender: userId,
-        text,
+        text: finalText,
         fileUrl,
-        fileType
+        fileType,
+        aiAnalysis: analysisResult
       });
+
+      // Track message sent event
+      analyticsService.trackMessageSent(
+        userId, 
+        roomId, 
+        message._id, 
+        fileUrl ? 'file' : 'text',
+        Date.now() - Date.now() // Placeholder for response time
+      );
 
       // Add delivery tracking for online users
       const onlineMembers = room.members.filter(
@@ -188,7 +318,7 @@ io.on('connection', (socket) => {
       if (recipients.length) {
         await sendPushNotifications(recipients, {
           title: 'New message',
-          body: text || 'Sent a file',
+          body: finalText || 'Sent a file',
           data: { roomId }
         });
       }
@@ -530,6 +660,12 @@ io.on('connection', (socket) => {
   // Handle disconnection
   socket.on('disconnect', async () => {
     updateUserOnlineStatus(false);
+    
+    // Track user logout/disconnection
+    analyticsService.trackUserLogout(userId, sessionId);
+    
+    // Update real-time connection count
+    analyticsService.updateConnectionCount(io.engine.clientsCount);
     
     // Handle meeting disconnection
     if (socket.meetingId) {
