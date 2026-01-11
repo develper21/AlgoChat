@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { handleApiError } from '../utils/errorHandler.js';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -16,3 +17,18 @@ export const setAuthToken = (token) => {
 };
 
 export default apiClient;
+
+// Add response interceptor for error handling
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Handle the error and re-throw for individual components to handle
+    const handledError = handleApiError(error, {
+      showToast: false, // Let components handle their own notifications
+      context: { url: error.config?.url, method: error.config?.method?.toUpperCase() }
+    });
+    
+    // Re-throw the error so components can handle it
+    return Promise.reject(handledError);
+  }
+);
