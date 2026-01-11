@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import Login from './components/Login.jsx';
-import Register from './components/Register.jsx';
+import TwoFactorSetup from './components/TwoFactorSetup.jsx';
+import ScheduledMessagesList from './components/ScheduledMessagesList.jsx';
 import ForgotPassword from './components/ForgotPassword.jsx';
 import ResetPassword from './components/ResetPassword.jsx';
 import VerifyEmail from './components/VerifyEmail.jsx';
@@ -23,6 +24,9 @@ const ProtectedRoute = ({ isAuthed, children }) => {
 const ChatLayout = ({ auth }) => {
   const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [showScheduledMessages, setShowScheduledMessages] = useState(false);
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +35,6 @@ const ChatLayout = ({ auth }) => {
     const params = new URLSearchParams(window.location.search);
     return params.get('room');
   });
-  const [showUserProfile, setShowUserProfile] = useState(false);
 
   useEffect(() => {
     if (!auth.token) return;
@@ -150,6 +153,30 @@ const ChatLayout = ({ auth }) => {
             : msg
         )
       );
+    });
+
+    socket.on('messageReaction', ({ messageId, reactions }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { ...msg, reactions }
+            : msg
+        )
+      );
+    });
+
+    socket.on('newThreadMessage', ({ message, parentMessageId, threadReplyCount }) => {
+      // Update parent message thread count
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === parentMessageId
+            ? { ...msg, threadReplyCount, isThreaded: true }
+            : msg
+        )
+      );
+      
+      // If we're in the thread view, this would be handled by the thread component
+      // For now, just update the parent message
     });
 
     return () => {
@@ -287,6 +314,16 @@ const ChatLayout = ({ auth }) => {
 
   const clearUploadPreview = () => setUploadPreview(null);
 
+  const handleCreateRoom = async (payload) => {
+    try {
+      const newRoom = await createRoom(payload);
+      setRooms(prev => [newRoom, ...prev]);
+      setSelectedRoom(newRoom);
+    } catch (error) {
+      console.error('Create room failed', error.message);
+    }
+  };
+
   const sortedRooms = useMemo(
     () =>
       [...rooms].sort((a, b) => new Date(b.lastMessageAt || b.updatedAt) - new Date(a.lastMessageAt || a.updatedAt)),
@@ -299,11 +336,7 @@ const ChatLayout = ({ auth }) => {
         rooms={sortedRooms}
         selectedRoom={selectedRoom}
         onSelectRoom={setSelectedRoom}
-        onCreateRoom={async (payload) => {
-          const room = await createRoom(payload);
-          setRooms((prev) => [room, ...prev]);
-          setSelectedRoom(room);
-        }}
+        onCreateRoom={handleCreateRoom}
         user={auth.user}
         isLoading={isLoading}
       />
@@ -396,6 +429,12 @@ const App = () => {
                     <button type="button" className="secondary" onClick={() => setShowUserProfile(true)}>
                       Profile
                     </button>
+                    <button type="button" className="secondary" onClick={() => setShowTwoFactor(true)}>
+                      2FA
+                    </button>
+                    <button type="button" className="secondary" onClick={() => setShowScheduledMessages(true)}>
+                      Scheduled
+                    </button>
                     <button type="button" className="secondary">
                       New Initiative
                     </button>
@@ -417,6 +456,7 @@ const App = () => {
                     room={selectedRoom}
                     messages={messages}
                     currentUser={auth.user}
+                    rooms={rooms}
                     onSendMessage={handleSendMessage}
                     onTyping={handleTyping}
                     typingUsers={typingUsers}
@@ -433,6 +473,24 @@ const App = () => {
                     currentUser={auth.user}
                     onClose={() => setShowUserProfile(false)}
                     onUpdate={handleProfileUpdate}
+                  />
+                )}
+                
+                {showScheduledMessages && (
+                  <ScheduledMessagesList
+                    currentUser={auth.user}
+                    onClose={() => setShowScheduledMessages(false)}
+                  />
+                )}
+                
+                {showTwoFactor && (
+                  <TwoFactorSetup
+                    user={auth.user}
+                    onClose={() => setShowTwoFactor(false)}
+                    onToggle={() => {
+                      // Refresh user data to update 2FA status
+                      handleProfileUpdate({ ...auth.user, twoFactorEnabled: !auth.user.twoFactorEnabled });
+                    }}
                   />
                 )}
               </div>
