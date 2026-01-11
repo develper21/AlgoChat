@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import OnlineStatusIndicator from './OnlineStatusIndicator.jsx';
+import Search from './Search.jsx';
 
 const getRoomTitle = (room, currentUser) => {
   if (room.isGroup) return room.name;
@@ -10,6 +12,7 @@ const Sidebar = ({ rooms, selectedRoom, onSelectRoom, onCreateRoom, user, isLoad
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ isGroup: false, name: '', members: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   const directRooms = useMemo(() => rooms.filter((room) => !room.isGroup), [rooms]);
   const groupRooms = useMemo(() => rooms.filter((room) => room.isGroup), [rooms]);
@@ -57,6 +60,7 @@ const Sidebar = ({ rooms, selectedRoom, onSelectRoom, onCreateRoom, user, isLoad
     const title = getRoomTitle(room, user);
     const initial = title?.charAt(0)?.toUpperCase() || 'C';
     const subLabel = room.isGroup ? `${room.members.length} members` : 'Direct partner';
+    const otherUser = room.isGroup ? null : room.members?.find(m => m._id !== user?._id);
 
     return (
       <button
@@ -71,6 +75,9 @@ const Sidebar = ({ rooms, selectedRoom, onSelectRoom, onCreateRoom, user, isLoad
             <p>{title}</p>
             <small>{subLabel}</small>
           </div>
+          {otherUser && (
+            <OnlineStatusIndicator user={otherUser} size="small" />
+          )}
         </div>
         <span className="room-time">
           {room.lastMessageAt ? new Date(room.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -105,66 +112,94 @@ const Sidebar = ({ rooms, selectedRoom, onSelectRoom, onCreateRoom, user, isLoad
       </div>
 
       <div className="sidebar-search">
-        <input
-          type="text"
-          placeholder="Search people, collectives, initiatives..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Search people, collectives, initiatives..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onFocus={() => setShowSearch(true)}
+            className="flex-1"
+          />
+          <button
+            type="button"
+            className={`px-3 py-1 text-sm ${showSearch ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            onClick={() => setShowSearch(!showSearch)}
+          >
+            {showSearch ? 'Rooms' : 'Search'}
+          </button>
+        </div>
       </div>
 
-      {showForm && (
-        <form className="room-form" onSubmit={handleSubmit}>
-          <label htmlFor="room-type">
-            Room type
-            <select
-              id="room-type"
-              value={form.isGroup ? 'group' : 'direct'}
-              onChange={(e) => setForm((prev) => ({ ...prev, isGroup: e.target.value === 'group' }))}
-            >
-              <option value="direct">Direct</option>
-              <option value="group">Group</option>
-            </select>
-          </label>
-          {form.isGroup && (
-            <label htmlFor="room-name">
-              Group name
-              <input
-                id="room-name"
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </label>
+      {showSearch ? (
+        <Search 
+          currentUser={user} 
+          onSelectRoom={onSelectRoom}
+          onSelectUser={(selectedUser) => {
+            // Create or find direct room with selected user
+            onCreateRoom({
+              isGroup: false,
+              memberEmails: [selectedUser.email]
+            });
+            setShowSearch(false);
+          }}
+        />
+      ) : (
+        <>
+          {showForm && (
+            <form className="room-form" onSubmit={handleSubmit}>
+              <label htmlFor="room-type">
+                Room type
+                <select
+                  id="room-type"
+                  value={form.isGroup ? 'group' : 'direct'}
+                  onChange={(e) => setForm((prev) => ({ ...prev, isGroup: e.target.value === 'group' }))}
+                >
+                  <option value="direct">Direct</option>
+                  <option value="group">Group</option>
+                </select>
+              </label>
+              {form.isGroup && (
+                <label htmlFor="room-name">
+                  Group name
+                  <input
+                    id="room-name"
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </label>
+              )}
+              <label htmlFor="room-members">
+                Member emails (comma separated)
+                <input
+                  id="room-members"
+                  type="text"
+                  value={form.members}
+                  placeholder="user@example.com"
+                  onChange={(e) => setForm((prev) => ({ ...prev, members: e.target.value }))}
+                  required
+                />
+              </label>
+              <button type="submit">Create</button>
+            </form>
           )}
-          <label htmlFor="room-members">
-            Member emails (comma separated)
-            <input
-              id="room-members"
-              type="text"
-              value={form.members}
-              placeholder="user@example.com"
-              onChange={(e) => setForm((prev) => ({ ...prev, members: e.target.value }))}
-              required
-            />
-          </label>
-          <button type="submit">Create</button>
-        </form>
+
+          <section className="room-section">
+            <h3>Direct</h3>
+            {isLoading && <p className="muted">Loading…</p>}
+            {!isLoading && filteredDirectRooms.length === 0 && <p className="muted">No direct chats</p>}
+            {filteredDirectRooms.map(renderRoom)}
+          </section>
+
+          <section className="room-section">
+            <h3>Groups</h3>
+            {!isLoading && filteredGroupRooms.length === 0 && <p className="muted">No group chats</p>}
+            {filteredGroupRooms.map(renderRoom)}
+          </section>
+        </>
       )}
-
-      <section className="room-section">
-        <h3>Direct</h3>
-        {isLoading && <p className="muted">Loading…</p>}
-        {!isLoading && filteredDirectRooms.length === 0 && <p className="muted">No direct chats</p>}
-        {filteredDirectRooms.map(renderRoom)}
-      </section>
-
-      <section className="room-section">
-        <h3>Groups</h3>
-        {!isLoading && filteredGroupRooms.length === 0 && <p className="muted">No group chats</p>}
-        {filteredGroupRooms.map(renderRoom)}
-      </section>
     </aside>
   );
 };
