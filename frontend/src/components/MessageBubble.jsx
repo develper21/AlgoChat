@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import MessageStatusIndicator from './MessageStatusIndicator.jsx';
 import FilePreview from './FilePreview.jsx';
+import MessageReactions from './MessageReactions.jsx';
+import MessageForward from './MessageForward.jsx';
+import MessageThread from './MessageThread.jsx';
+import { addReaction, removeReaction, forwardMessage } from '../api/messages.js';
 
-const MessageBubble = ({ message, isOwn, onEdit, onDelete }) => {
+const MessageBubble = ({ message, isOwn, currentUser, onEdit, onDelete, rooms }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(message.text || '');
   const [menuOpen, setMenuOpen] = useState(false);
   const [showFilePreview, setShowFilePreview] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [showThreadModal, setShowThreadModal] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -35,9 +41,37 @@ const MessageBubble = ({ message, isOwn, onEdit, onDelete }) => {
     setIsEditing(true);
   };
 
-  const handleDelete = () => {
-    setMenuOpen(false);
-    onDelete(message._id);
+  const handleDelete = async () => {
+    try {
+      await onDelete(message._id);
+      setMenuOpen(false);
+    } catch (error) {
+      console.error('Delete failed:', error);
+    }
+  };
+
+  const handleAddReaction = async (messageId, emoji) => {
+    try {
+      await addReaction(messageId, emoji);
+    } catch (error) {
+      console.error('Add reaction failed:', error);
+    }
+  };
+
+  const handleRemoveReaction = async (messageId, emoji) => {
+    try {
+      await removeReaction(messageId, emoji);
+    } catch (error) {
+      console.error('Remove reaction failed:', error);
+    }
+  };
+
+  const handleForward = async (messageId, roomId, text) => {
+    try {
+      await forwardMessage(messageId, roomId, text);
+    } catch (error) {
+      console.error('Forward failed:', error);
+    }
   };
 
   const handleSave = () => {
@@ -66,12 +100,34 @@ const MessageBubble = ({ message, isOwn, onEdit, onDelete }) => {
               <span />
             </button>
             {menuOpen && (
-              <div className={`bubble-menu ${isOwn ? 'align-right' : ''}`}>
-                <button type="button" onClick={handleEditStart}>
-                  Edit message
+              <div className={`message-menu ${isOwn ? 'align-right' : ''}`}>
+                {isOwn && !message.deleted && (
+                  <>
+                    <button type="button" onClick={handleEditStart}>
+                      Edit
+                    </button>
+                    <button type="button" className="danger" onClick={handleDelete}>
+                      Delete for me
+                    </button>
+                  </>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowForwardModal(true);
+                    setMenuOpen(false);
+                  }}
+                >
+                  Forward
                 </button>
-                <button type="button" className="danger" onClick={handleDelete}>
-                  Delete for me
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowThreadModal(true);
+                    setMenuOpen(false);
+                  }}
+                >
+                  Thread
                 </button>
               </div>
             )}
@@ -149,12 +205,55 @@ const MessageBubble = ({ message, isOwn, onEdit, onDelete }) => {
         <MessageStatusIndicator message={message} isOwn={isOwn} />
       )}
       
+      {/* Thread Reply Indicator */}
+      {message.isThreaded && message.threadReplyCount > 0 && (
+        <button
+          onClick={() => setShowThreadModal(true)}
+          className="thread-indicator flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 mt-1"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <span>{message.threadReplyCount} {message.threadReplyCount === 1 ? 'reply' : 'replies'}</span>
+        </button>
+      )}
+      
+      {/* Message Reactions */}
+      {!message.deleted && message.reactions && message.reactions.length > 0 && (
+        <MessageReactions
+          message={message}
+          currentUser={currentUser}
+          onAddReaction={handleAddReaction}
+          onRemoveReaction={handleRemoveReaction}
+        />
+      )}
+      
       {showFilePreview && (
         <FilePreview
           fileUrl={message.fileUrl}
           fileType={message.fileType}
           fileName={`message-${message._id}`}
           onClose={() => setShowFilePreview(false)}
+        />
+      )}
+      
+      {showForwardModal && (
+        <MessageForward
+          message={message}
+          currentUser={currentUser}
+          rooms={rooms}
+          onForward={handleForward}
+          onClose={() => setShowForwardModal(false)}
+        />
+      )}
+      
+      {showThreadModal && (
+        <MessageThread
+          parentMessage={message}
+          currentUser={currentUser}
+          onClose={() => setShowThreadModal(false)}
+          onSendMessage={() => {}} // Thread handles its own sending
+          rooms={rooms}
         />
       )}
     </div>
