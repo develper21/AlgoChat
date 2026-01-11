@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import MessageBubble from './MessageBubble.jsx';
 import MessageInput from './MessageInput.jsx';
+import OnlineStatusIndicator from './OnlineStatusIndicator.jsx';
 
 const TypingIndicator = ({ room, typingUsers }) => {
   if (!room) return null;
@@ -47,6 +48,11 @@ const ChatWindow = ({
     return other?.email || '';
   }, [room, currentUser?._id]);
 
+  const otherUser = useMemo(() => {
+    if (room?.isGroup) return null;
+    return room?.members.find((member) => member._id !== currentUser?._id);
+  }, [room, currentUser?._id]);
+
   if (!room) {
     return (
       <section className="chat-window empty">
@@ -59,9 +65,14 @@ const ChatWindow = ({
   return (
     <section className="chat-window">
       <header className="chat-header">
-        <div>
-          <h2>{roomTitle}</h2>
-          <p>{roomSubtitle}</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h2>{roomTitle}</h2>
+            <p>{roomSubtitle}</p>
+          </div>
+          {otherUser && (
+            <OnlineStatusIndicator user={otherUser} size="medium" />
+          )}
         </div>
       </header>
       <div className="chat-body">
