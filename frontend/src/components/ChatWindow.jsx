@@ -16,6 +16,7 @@ const ChatWindow = ({
   room,
   messages,
   currentUser,
+  rooms,
   onSendMessage,
   onTyping,
   typingUsers,
@@ -81,6 +82,8 @@ const ChatWindow = ({
             key={message._id}
             message={message}
             isOwn={message.sender?._id === currentUser?._id}
+            currentUser={currentUser}
+            rooms={rooms}
             onEdit={onEditMessage}
             onDelete={onDeleteMessage}
           />
@@ -91,6 +94,8 @@ const ChatWindow = ({
       <MessageInput
         onSend={onSendMessage}
         onTyping={onTyping}
+        currentUser={currentUser}
+        rooms={rooms}
         onFileUpload={onFileUpload}
         uploadPreview={uploadPreview}
         clearUploadPreview={clearUploadPreview}
