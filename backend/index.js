@@ -22,14 +22,18 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
+    origin: [process.env.FRONTEND_URL, process.env.LOCAL_FRONTEND_URL, 'http://localhost:3000'].filter(Boolean),
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
   }
 });
 
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
+app.use(cors({ 
+  origin: [process.env.FRONTEND_URL, process.env.LOCAL_FRONTEND_URL, 'http://localhost:3000'].filter(Boolean), 
+  credentials: true 
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 
