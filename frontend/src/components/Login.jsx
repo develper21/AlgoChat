@@ -73,9 +73,9 @@ const Login = ({ onSuccess, isAuthed }) => {
             <input type="checkbox" />
             <span>Keep me signed in</span>
           </label>
-          <button type="button" className="link-button">
+          <Link to="/forgot-password" className="link-button">
             Forgot password?
-          </button>
+          </Link>
         </div>
         <button type="submit" disabled={loading}>
           {loading ? 'Authenticating…' : 'Enter workspace'}
