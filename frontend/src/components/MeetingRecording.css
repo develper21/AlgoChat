@@ -1,0 +1,295 @@
+.meeting-recording {
+  position: relative;
+  display: inline-block;
+}
+
+.recording-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-btn {
+  background: #333;
+  border: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.record-btn:hover {
+  background: #444;
+  transform: scale(1.02);
+}
+
+.record-btn:disabled {
+  background: #555;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.start-record {
+  background: #dc3545;
+}
+
+.start-record:hover {
+  background: #c82333;
+}
+
+.pause-record {
+  background: #ffc107;
+  color: #333;
+}
+
+.pause-record:hover {
+  background: #e0a800;
+}
+
+.resume-record {
+  background: #28a745;
+}
+
+.resume-record:hover {
+  background: #218838;
+}
+
+.stop-record {
+  background: #6c757d;
+}
+
+.stop-record:hover {
+  background: #5a6268;
+}
+
+.settings-btn {
+  background: #333;
+  padding: 8px;
+  border-radius: 50%;
+}
+
+.settings-btn.active {
+  background: #007bff;
+}
+
+.recording-active {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #dc3545;
+  font-weight: bold;
+  font-size: 14px;
+  animation: recordingPulse 1.5s infinite;
+}
+
+@keyframes recordingPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.recording-dot {
+  width: 12px;
+  height: 12px;
+  background: #dc3545;
+  border-radius: 50%;
+  animation: dotPulse 1s infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+.recording-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.recording-settings {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  margin-top: 10px;
+}
+
+.recording-settings h4 {
+  margin: 0 0 15px 0;
+  color: white;
+  font-size: 16px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 10px;
+}
+
+.setting-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.setting-group label {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.setting-group select {
+  background: #333;
+  border: 1px solid #555;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+.setting-group select:focus {
+  border-color: #007bff;
+}
+
+.setting-group input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #007bff;
+}
+
+.recording-info {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #444;
+}
+
+.recording-info p {
+  margin: 0 0 8px 0;
+  color: #ccc;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.recording-info .warning {
+  color: #ffc107;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .recording-controls {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .recording-active {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+  
+  .recording-actions {
+    justify-content: center;
+  }
+  
+  .recording-settings {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    right: auto;
+    width: 90%;
+    max-width: 350px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  .record-btn {
+    justify-content: center;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .recording-settings {
+    width: 95%;
+    padding: 15px;
+  }
+  
+  .setting-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .setting-group select,
+  .setting-group input[type="checkbox"] {
+    align-self: flex-end;
+  }
+}
+
+/* Accessibility */
+.record-btn:focus,
+.setting-group select:focus,
+.setting-group input[type="checkbox"]:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .recording-settings {
+    background: #000;
+    border: 2px solid #fff;
+  }
+  
+  .record-btn {
+    border: 2px solid #fff;
+  }
+  
+  .setting-group select {
+    border-color: #fff;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .recording-indicator {
+    animation: none;
+  }
+  
+  .recording-dot {
+    animation: none;
+  }
+  
+  .record-btn:hover {
+    transform: none;
+  }
+}
