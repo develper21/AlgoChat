@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { sendVerificationEmail, sendPasswordResetEmail, generateToken as generateRandomToken } from '../utils/emailService.js';
+import { verifyTwoFactorToken, verifyBackupCode, removeBackupCode } from '../utils/twoFactor.js';
 
 const generateJWTToken = (userId) =>
   jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -41,12 +42,44 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, twoFactorToken, backupCode } = req.body;
     const user = await User.findOne({ email }).select('+password');
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+
+    // If 2FA is enabled, verify the token
+    if (user.twoFactorEnabled) {
+      if (!twoFactorToken && !backupCode) {
+        return res.status(200).json({ 
+          requiresTwoFactor: true,
+          message: 'Two-factor authentication required' 
+        });
+      }
+
+      let isValid = false;
+
+      // Verify TOTP token
+      if (twoFactorToken) {
+        isValid = verifyTwoFactorToken(user.twoFactorSecret, twoFactorToken);
+      }
+      
+      // Verify backup code
+      else if (backupCode) {
+        isValid = verifyBackupCode(user.twoFactorBackupCodes, backupCode);
+        
+        if (isValid) {
+          // Remove used backup code
+          user.twoFactorBackupCodes = removeBackupCode(user.twoFactorBackupCodes, backupCode);
+          await user.save();
+        }
+      }
+
+      if (!isValid) {
+        return res.status(400).json({ message: 'Invalid two-factor authentication code' });
+      }
+    }
 
     const token = generateJWTToken(user._id);
     res.json({ token, user: user.toJSON() });
