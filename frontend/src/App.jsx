@@ -9,6 +9,8 @@ import VerifyEmail from './components/VerifyEmail.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import ChatWindow from './components/ChatWindow.jsx';
 import UserProfile from './components/UserProfile.jsx';
+import MeetingList from './components/MeetingList.jsx';
+import MeetingRoom from './components/MeetingRoom.jsx';
 import { setAuthToken } from './api/client.js';
 import { fetchRooms, createRoom, fetchRoomMessages } from './api/rooms.js';
 import { uploadFile } from './api/uploads.js';
@@ -404,6 +406,22 @@ const App = () => {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route
+          path="/meetings"
+          element={
+            <ProtectedRoute isAuthed={!!auth.token}>
+              <MeetingList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/meeting/:meetingId"
+          element={
+            <ProtectedRoute isAuthed={!!auth.token}>
+              <MeetingRoom />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/"
           element={
             <ProtectedRoute isAuthed={!!auth.token}>
@@ -434,6 +452,9 @@ const App = () => {
                     </button>
                     <button type="button" className="secondary" onClick={() => setShowScheduledMessages(true)}>
                       Scheduled
+                    </button>
+                    <button type="button" className="secondary" onClick={() => window.location.href = '/meetings'}>
+                      Meetings
                     </button>
                     <button type="button" className="secondary">
                       New Initiative
