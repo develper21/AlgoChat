@@ -18,7 +18,13 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true, select: false },
     avatar: { type: String },
-    pushSubscriptions: [subscriptionSchema]
+    pushSubscriptions: [subscriptionSchema],
+    isEmailVerified: { type: Boolean, default: false },
+    emailVerificationToken: { type: String },
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date },
+    isOnline: { type: Boolean, default: false },
+    lastSeen: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );
