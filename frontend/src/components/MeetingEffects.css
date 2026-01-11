@@ -1,0 +1,419 @@
+.meeting-effects {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 80px;
+  width: 400px;
+  background: #2a2a2a;
+  border-left: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+  overflow-y: auto;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.effects-header {
+  padding: 15px;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #333;
+}
+
+.effects-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: white;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.close-btn:hover {
+  background: #444;
+}
+
+.effects-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.video-preview {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a1a1a;
+  aspect-ratio: 4/3;
+}
+
+.preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hidden-canvas {
+  display: none;
+}
+
+.effect-section {
+  margin-bottom: 30px;
+}
+
+.effect-section h4 {
+  margin: 0 0 15px 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.background-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.bg-option {
+  background: #333;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.bg-option:hover {
+  background: #444;
+}
+
+.bg-option.active {
+  border-color: #007bff;
+  background: #004085;
+}
+
+.bg-option img {
+  width: 60px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.bg-placeholder {
+  width: 60px;
+  height: 40px;
+  background: #555;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #ccc;
+}
+
+.bg-option span {
+  font-size: 11px;
+  color: white;
+  text-align: center;
+}
+
+.effect-control {
+  background: #333;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.effect-control label {
+  display: block;
+  color: white;
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.effect-control input[type="range"] {
+  width: 100%;
+  height: 4px;
+  background: #555;
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.effect-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.effect-control input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.effect-control input[type="file"] {
+  width: 100%;
+  padding: 8px;
+  background: #444;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+}
+
+.filter-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.filter-option {
+  background: #333;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+  font-size: 13px;
+  text-align: center;
+}
+
+.filter-option:hover {
+  background: #444;
+}
+
+.filter-option.active {
+  border-color: #007bff;
+  background: #004085;
+}
+
+.video-adjustments {
+  background: #333;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.adjustment-control {
+  margin-bottom: 15px;
+}
+
+.adjustment-control:last-child {
+  margin-bottom: 0;
+}
+
+.adjustment-control label {
+  display: block;
+  color: white;
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.audio-controls {
+  background: #333;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: color 0.2s;
+}
+
+.checkbox-label:last-child {
+  margin-bottom: 0;
+}
+
+.checkbox-label:hover {
+  color: #007bff;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #007bff;
+}
+
+.effects-actions {
+  padding-top: 20px;
+  border-top: 1px solid #333;
+}
+
+.reset-btn {
+  width: 100%;
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.reset-btn:hover {
+  background: #5a6268;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .meeting-effects {
+    width: 100%;
+    bottom: 70px;
+  }
+  
+  .effects-content {
+    padding: 15px;
+  }
+  
+  .background-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .filter-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .video-preview {
+    aspect-ratio: 16/9;
+  }
+}
+
+@media (max-width: 480px) {
+  .background-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .bg-option img,
+  .bg-placeholder {
+    width: 80px;
+    height: 60px;
+  }
+  
+  .effects-header {
+    padding: 10px 15px;
+  }
+  
+  .effects-content {
+    padding: 10px 15px;
+  }
+}
+
+/* Scrollbar Styling */
+.meeting-effects::-webkit-scrollbar {
+  width: 6px;
+}
+
+.meeting-effects::-webkit-scrollbar-track {
+  background: #333;
+}
+
+.meeting-effects::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+
+.meeting-effects::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Accessibility */
+.bg-option:focus,
+.filter-option:focus,
+.reset-btn:focus,
+.checkbox-label input:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .meeting-effects {
+    background: #000;
+    border-left: 2px solid #fff;
+  }
+  
+  .effects-header {
+    background: #000;
+    border-bottom: 2px solid #fff;
+  }
+  
+  .bg-option,
+  .filter-option,
+  .effect-control,
+  .video-adjustments,
+  .audio-controls {
+    background: #000;
+    border: 2px solid #fff;
+  }
+  
+  .bg-option.active,
+  .filter-option.active {
+    border-color: #fff;
+    background: #333;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .meeting-effects {
+    animation: none;
+  }
+  
+  .bg-option,
+  .filter-option,
+  .reset-btn {
+    transition: none;
+  }
+}
