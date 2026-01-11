@@ -24,7 +24,13 @@ const userSchema = new mongoose.Schema(
     passwordResetToken: { type: String },
     passwordResetExpires: { type: Date },
     isOnline: { type: Boolean, default: false },
-    lastSeen: { type: Date, default: Date.now }
+    lastSeen: { type: Date, default: Date.now },
+    // Two-Factor Authentication
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String },
+    twoFactorBackupCodes: [{ type: String }],
+    twoFactorTempSecret: { type: String },
+    twoFactorTempSecretExpires: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );
