@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { loginUser } from '../api/auth.js';
+import TwoFactorLogin from './TwoFactorLogin.jsx';
 
 const Login = ({ onSuccess, isAuthed }) => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [pendingLogin, setPendingLogin] = useState(null);
 
   if (isAuthed) {
     return <Navigate to="/" replace />;
@@ -22,13 +25,41 @@ const Login = ({ onSuccess, isAuthed }) => {
     setError('');
     try {
       const data = await loginUser(form);
-      onSuccess(data);
-      navigate('/');
+      
+      if (data.requiresTwoFactor) {
+        // Store pending login data and show 2FA modal
+        setPendingLogin(form);
+        setShowTwoFactor(true);
+      } else {
+        onSuccess(data);
+        navigate('/');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTwoFactorVerification = async (twoFactorData) => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await loginUser({ ...pendingLogin, ...twoFactorData });
+      onSuccess(data);
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.message || '2FA verification failed');
+      setShowTwoFactor(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTwoFactorCancel = () => {
+    setShowTwoFactor(false);
+    setPendingLogin(null);
+    setError('');
   };
 
   return (
@@ -84,6 +115,14 @@ const Login = ({ onSuccess, isAuthed }) => {
           Need a seat? <Link to="/register">Request access</Link>
         </p>
       </form>
+      
+      {showTwoFactor && (
+        <TwoFactorLogin
+          email={pendingLogin?.email}
+          onVerificationSuccess={handleTwoFactorVerification}
+          onCancel={handleTwoFactorCancel}
+        />
+      )}
     </div>
   );
 };
