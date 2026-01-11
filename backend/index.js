@@ -16,9 +16,13 @@ import pushRoutes from './routes/push.js';
 import searchRoutes from './routes/search.js';
 import profileRoutes from './routes/profile.js';
 import twoFactorRoutes from './routes/twoFactor.js';
+import meetingRoutes from './routes/meetings.js';
 import authMiddleware from './middleware/auth.js';
 import Message from './models/Message.js';
 import Room from './models/Room.js';
+import Meeting from './models/Meeting.js';
+import MeetingChat from './models/MeetingChat.js';
+import User from './models/User.js';
 import { sendPushNotifications } from './utils/push.js';
 import { formatMessage } from './utils/messageFormatter.js';
 import { errorHandler } from './utils/errorHandler.js';
@@ -47,6 +51,7 @@ app.use('/api/push', authMiddleware, pushRoutes);
 app.use('/api/search', authMiddleware, searchRoutes);
 app.use('/api/profile', authMiddleware, profileRoutes);
 app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/meetings', authMiddleware, meetingRoutes);
 
 // 404 handler
 app.use('*', (req, res, next) => {
@@ -260,9 +265,289 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Meeting/WebRTC Socket Handlers
+  socket.on('joinMeeting', async ({ meetingId }) => {
+    try {
+      const meeting = await Meeting.findById(meetingId)
+        .populate('host', 'name email avatar')
+        .populate('participants.user', 'name email avatar');
+      
+      if (!meeting) {
+        socket.emit('error', { message: 'Meeting not found' });
+        return;
+      }
+
+      // Check if user is host or participant
+      const isHost = meeting.host._id.toString() === userId;
+      const isParticipant = meeting.isParticipant(userId) || isHost;
+
+      if (!isParticipant && meeting.accessType !== 'public') {
+        socket.emit('error', { message: 'Access denied' });
+        return;
+      }
+
+      // Join meeting room
+      socket.join(`meeting:${meetingId}`);
+      socket.meetingId = meetingId;
+
+      // Add participant to meeting
+      if (!isParticipant) {
+        meeting.addParticipant(userId);
+      } else {
+        meeting.updateParticipantStatus(userId, { 
+          connectionId: socket.id,
+          joinedAt: new Date()
+        });
+      }
+
+      await meeting.save();
+
+      // Notify other participants
+      socket.to(`meeting:${meetingId}`).emit('participantJoined', {
+        userId,
+        socketId: socket.id,
+        participant: meeting.getParticipant(userId)
+      });
+
+      // Send meeting info to the joined user
+      socket.emit('meetingJoined', {
+        meeting,
+        participants: meeting.participants.filter(p => !p.leftAt),
+        isHost
+      });
+
+    } catch (error) {
+      console.error('joinMeeting error:', error);
+      socket.emit('error', { message: 'Failed to join meeting' });
+    }
+  });
+
+  // WebRTC Signaling
+  socket.on('offer', ({ targetUserId, offer }) => {
+    socket.to(`meeting:${socket.meetingId}`).emit('offer', {
+      fromUserId: userId,
+      fromSocketId: socket.id,
+      offer
+    });
+  });
+
+  socket.on('answer', ({ targetUserId, answer }) => {
+    socket.to(`meeting:${socket.meetingId}`).emit('answer', {
+      fromUserId: userId,
+      fromSocketId: socket.id,
+      answer
+    });
+  });
+
+  socket.on('ice-candidate', ({ targetUserId, candidate }) => {
+    socket.to(`meeting:${socket.meetingId}`).emit('ice-candidate', {
+      fromUserId: userId,
+      fromSocketId: socket.id,
+      candidate
+    });
+  });
+
+  // Meeting Controls
+  socket.on('toggleAudio', ({ isMuted }) => {
+    if (socket.meetingId) {
+      Meeting.findById(socket.meetingId).then(meeting => {
+        if (meeting) {
+          meeting.updateParticipantStatus(userId, { isMuted });
+          meeting.save();
+          
+          socket.to(`meeting:${socket.meetingId}`).emit('participantAudioChanged', {
+            userId,
+            isMuted
+          });
+        }
+      });
+    }
+  });
+
+  socket.on('toggleVideo', ({ isVideoOff }) => {
+    if (socket.meetingId) {
+      Meeting.findById(socket.meetingId).then(meeting => {
+        if (meeting) {
+          meeting.updateParticipantStatus(userId, { isVideoOff });
+          meeting.save();
+          
+          socket.to(`meeting:${socket.meetingId}`).emit('participantVideoChanged', {
+            userId,
+            isVideoOff
+          });
+        }
+      });
+    }
+  });
+
+  socket.on('toggleScreenShare', ({ isScreenSharing }) => {
+    if (socket.meetingId) {
+      Meeting.findById(socket.meetingId).then(meeting => {
+        if (meeting) {
+          meeting.updateParticipantStatus(userId, { isScreenSharing });
+          meeting.save();
+          
+          socket.to(`meeting:${socket.meetingId}`).emit('participantScreenShareChanged', {
+            userId,
+            isScreenSharing
+          });
+        }
+      });
+    }
+  });
+
+  socket.on('raiseHand', ({ handRaised }) => {
+    if (socket.meetingId) {
+      Meeting.findById(socket.meetingId).then(meeting => {
+        if (meeting) {
+          meeting.updateParticipantStatus(userId, { handRaised });
+          meeting.save();
+          
+          io.to(`meeting:${socket.meetingId}`).emit('participantHandRaised', {
+            userId,
+            handRaised
+          });
+        }
+      });
+    }
+  });
+
+  // Meeting Chat
+  socket.on('sendMeetingMessage', async ({ message, replyTo, isPrivate, privateTo }) => {
+    try {
+      if (!socket.meetingId) return;
+
+      const meetingChat = await MeetingChat.create({
+        meeting: socket.meetingId,
+        sender: userId,
+        message,
+        replyTo,
+        isPrivate,
+        privateTo
+      });
+
+      const populatedChat = await MeetingChat.findById(meetingChat._id)
+        .populate('sender', 'name email avatar')
+        .populate('replyTo', 'message sender')
+        .populate('privateTo', 'name email avatar');
+
+      if (isPrivate && privateTo) {
+        // Send to specific user
+        socket.to(`meeting:${socket.meetingId}`).emit('meetingMessage', populatedChat);
+      } else {
+        // Send to all participants
+        io.to(`meeting:${socket.meetingId}`).emit('meetingMessage', populatedChat);
+      }
+
+    } catch (error) {
+      console.error('sendMeetingMessage error:', error);
+    }
+  });
+
+  // Meeting Recording
+  socket.on('startRecording', async () => {
+    try {
+      if (!socket.meetingId) return;
+
+      const meeting = await Meeting.findById(socket.meetingId);
+      if (!meeting) return;
+
+      const isHost = meeting.isHost(userId);
+      if (!isHost && !meeting.allowRecording) {
+        socket.emit('error', { message: 'Recording not allowed' });
+        return;
+      }
+
+      meeting.recording = {
+        isRecording: true,
+        startedAt: new Date()
+      };
+      await meeting.save();
+
+      io.to(`meeting:${socket.meetingId}`).emit('recordingStarted', {
+        startedAt: meeting.recording.startedAt
+      });
+
+    } catch (error) {
+      console.error('startRecording error:', error);
+    }
+  });
+
+  socket.on('stopRecording', async () => {
+    try {
+      if (!socket.meetingId) return;
+
+      const meeting = await Meeting.findById(socket.meetingId);
+      if (!meeting) return;
+
+      const isHost = meeting.isHost(userId);
+      if (!isHost) {
+        socket.emit('error', { message: 'Only host can stop recording' });
+        return;
+      }
+
+      const duration = meeting.recording.startedAt ? 
+        Math.round((Date.now() - meeting.recording.startedAt.getTime()) / 1000) : 0;
+
+      meeting.recording.isRecording = false;
+      meeting.recording.duration = duration;
+      await meeting.save();
+
+      io.to(`meeting:${socket.meetingId}`).emit('recordingStopped', {
+        duration,
+        recordingUrl: meeting.recording.recordingUrl
+      });
+
+    } catch (error) {
+      console.error('stopRecording error:', error);
+    }
+  });
+
+  // Leave Meeting
+  socket.on('leaveMeeting', async () => {
+    try {
+      if (!socket.meetingId) return;
+
+      const meeting = await Meeting.findById(socket.meetingId);
+      if (meeting) {
+        meeting.removeParticipant(userId);
+        await meeting.save();
+
+        socket.to(`meeting:${socket.meetingId}`).emit('participantLeft', {
+          userId,
+          socketId: socket.id
+        });
+      }
+
+      socket.leave(`meeting:${socket.meetingId}`);
+      socket.meetingId = null;
+
+    } catch (error) {
+      console.error('leaveMeeting error:', error);
+    }
+  });
+
   // Handle disconnection
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     updateUserOnlineStatus(false);
+    
+    // Handle meeting disconnection
+    if (socket.meetingId) {
+      try {
+        const meeting = await Meeting.findById(socket.meetingId);
+        if (meeting) {
+          meeting.removeParticipant(userId);
+          await meeting.save();
+
+          socket.to(`meeting:${socket.meetingId}`).emit('participantLeft', {
+            userId,
+            socketId: socket.id
+          });
+        }
+      } catch (error) {
+        console.error('Meeting disconnect error:', error);
+      }
+    }
   });
 });
 
