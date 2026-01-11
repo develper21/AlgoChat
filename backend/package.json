@@ -4,29 +4,43 @@
   "main": "index.js",
   "type": "module",
   "description": "Real-time chat application backend with Socket.IO",
-  "keywords": ["chat", "realtime", "socket.io", "express", "mongodb"],
+  "keywords": [
+    "chat",
+    "realtime",
+    "socket.io",
+    "express",
+    "mongodb"
+  ],
   "author": "AlgoChat Team",
   "license": "MIT",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.2.1",
+    "joi": "^18.0.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.0",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "^2.2.1",
+    "nodemailer": "^7.0.12",
+    "rate-limit-mongo": "^2.3.2",
     "socket.io": "^4.7.5",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.4",
+    "supertest": "^7.2.2"
   }
 }
