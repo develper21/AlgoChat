@@ -15,12 +15,14 @@ import uploadRoutes from './routes/uploads.js';
 import pushRoutes from './routes/push.js';
 import searchRoutes from './routes/search.js';
 import profileRoutes from './routes/profile.js';
+import twoFactorRoutes from './routes/twoFactor.js';
 import authMiddleware from './middleware/auth.js';
 import Message from './models/Message.js';
 import Room from './models/Room.js';
 import { sendPushNotifications } from './utils/push.js';
 import { formatMessage } from './utils/messageFormatter.js';
 import { errorHandler } from './utils/errorHandler.js';
+import messageScheduler from './utils/scheduler.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -44,6 +46,7 @@ app.use('/api/uploads', authMiddleware, uploadRoutes);
 app.use('/api/push', authMiddleware, pushRoutes);
 app.use('/api/search', authMiddleware, searchRoutes);
 app.use('/api/profile', authMiddleware, profileRoutes);
+app.use('/api/2fa', twoFactorRoutes);
 
 // 404 handler
 app.use('*', (req, res, next) => {
@@ -61,6 +64,9 @@ const startServer = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('MongoDB connected');
+
+    // Reschedule any pending scheduled messages
+    await messageScheduler.reschedulePendingMessages();
 
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   } catch (error) {
