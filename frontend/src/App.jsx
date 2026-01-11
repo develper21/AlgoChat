@@ -2,8 +2,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import Login from './components/Login.jsx';
 import Register from './components/Register.jsx';
+import ForgotPassword from './components/ForgotPassword.jsx';
+import ResetPassword from './components/ResetPassword.jsx';
+import VerifyEmail from './components/VerifyEmail.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import ChatWindow from './components/ChatWindow.jsx';
+import UserProfile from './components/UserProfile.jsx';
 import { setAuthToken } from './api/client.js';
 import { fetchRooms, createRoom, fetchRoomMessages } from './api/rooms.js';
 import { uploadFile } from './api/uploads.js';
@@ -27,6 +31,7 @@ const ChatLayout = ({ auth }) => {
     const params = new URLSearchParams(window.location.search);
     return params.get('room');
   });
+  const [showUserProfile, setShowUserProfile] = useState(false);
 
   useEffect(() => {
     if (!auth.token) return;
@@ -92,6 +97,61 @@ const ChatLayout = ({ auth }) => {
       );
     });
 
+    socket.on('userStatusChanged', ({ userId, isOnline, lastSeen }) => {
+      setRooms((prev) =>
+        prev.map((room) => ({
+          ...room,
+          members: room.members.map((member) =>
+            member._id === userId ? { ...member, isOnline, lastSeen } : member
+          )
+        }))
+      );
+    });
+
+    socket.on('roomMembersStatus', (members) => {
+      if (selectedRoom) {
+        setRooms((prev) =>
+          prev.map((room) =>
+            room._id === selectedRoom._id
+              ? { ...room, members }
+              : room
+          )
+        );
+      }
+    });
+
+    socket.on('messageRead', ({ messageId, readBy }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { 
+                ...msg, 
+                readBy: [...(msg.readBy || []), readBy].filter(
+                  (read, index, self) => 
+                    index === self.findIndex((r) => r.user === read.user)
+                )
+              }
+            : msg
+        )
+      );
+    });
+
+    socket.on('messageDelivered', ({ messageId, deliveredTo }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { 
+                ...msg, 
+                deliveredTo: [...(msg.deliveredTo || []), ...deliveredTo].filter(
+                  (delivered, index, self) => 
+                    index === self.findIndex((d) => d.user === delivered.user)
+                )
+              }
+            : msg
+        )
+      );
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -149,6 +209,15 @@ const ChatLayout = ({ auth }) => {
     }
   }, [pendingRoomId, rooms]);
 
+  // Mark messages as read when room is selected or new messages arrive
+  useEffect(() => {
+    if (selectedRoom && messages.length > 0) {
+      // Small delay to ensure messages are loaded
+      const timer = setTimeout(markMessagesAsRead, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedRoom?._id, messages.length]);
+
   const handleSendMessage = ({ text, fileUrl, fileType }) => {
     const socket = getSocket();
     if (!socket || !selectedRoom) return;
@@ -164,6 +233,21 @@ const ChatLayout = ({ auth }) => {
     const socket = getSocket();
     if (!socket || !selectedRoom) return;
     socket.emit('typing', { roomId: selectedRoom._id, isTyping });
+  };
+
+  const markMessagesAsRead = () => {
+    const socket = getSocket();
+    if (!socket || !selectedRoom || !auth.user) return;
+    
+    // Mark unread messages (not sent by current user) as read
+    const unreadMessages = messages.filter(
+      msg => msg.sender?._id !== auth.user._id && 
+      !msg.readBy?.some(read => read.user === auth.user._id)
+    );
+    
+    unreadMessages.forEach(msg => {
+      socket.emit('markAsRead', { messageId: msg._id });
+    });
   };
 
   const handleEditMessage = (messageId, text) => {
@@ -267,6 +351,11 @@ const App = () => {
     socket?.disconnect();
   };
 
+  const handleProfileUpdate = (updatedUser) => {
+    setAuth(prev => ({ ...prev, user: updatedUser }));
+    localStorage.setItem('algonive_user', JSON.stringify(updatedUser));
+  };
+
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
@@ -278,6 +367,9 @@ const App = () => {
           path="/register"
           element={<Register onSuccess={handleAuthSuccess} isAuthed={!!auth.token} />}
         />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route
           path="/"
           element={
@@ -301,6 +393,9 @@ const App = () => {
                         <small>Connected</small>
                       </div>
                     </div>
+                    <button type="button" className="secondary" onClick={() => setShowUserProfile(true)}>
+                      Profile
+                    </button>
                     <button type="button" className="secondary">
                       New Initiative
                     </button>
@@ -309,7 +404,37 @@ const App = () => {
                     </button>
                   </div>
                 </header>
-                <ChatLayout auth={auth} />
+                <div className="app-content">
+                  <Sidebar
+                    rooms={rooms}
+                    selectedRoom={selectedRoom}
+                    onSelectRoom={setSelectedRoom}
+                    onCreateRoom={handleCreateRoom}
+                    user={auth.user}
+                    isLoading={isLoading}
+                  />
+                  <ChatWindow
+                    room={selectedRoom}
+                    messages={messages}
+                    currentUser={auth.user}
+                    onSendMessage={handleSendMessage}
+                    onTyping={handleTyping}
+                    typingUsers={typingUsers}
+                    onEditMessage={handleEditMessage}
+                    onDeleteMessage={handleDeleteMessage}
+                    onFileUpload={handleFileUpload}
+                    uploadPreview={uploadPreview}
+                    clearUploadPreview={() => setUploadPreview(null)}
+                  />
+                </div>
+                
+                {showUserProfile && (
+                  <UserProfile
+                    currentUser={auth.user}
+                    onClose={() => setShowUserProfile(false)}
+                    onUpdate={handleProfileUpdate}
+                  />
+                )}
               </div>
             </ProtectedRoute>
           }
