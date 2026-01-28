@@ -315,8 +315,6 @@ userSchema.statics.createSystemRoles = async function() {
 };
 
 // Indexes
-userSchema.index({ email: 1 });
-userSchema.index({ employeeId: 1 });
 userSchema.index({ ssoProvider: 1, ssoId: 1 });
 userSchema.index({ roles: 1 });
 userSchema.index({ isActive: 1 });
