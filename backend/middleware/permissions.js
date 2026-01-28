@@ -1,6 +1,15 @@
 import User from '../models/User.js';
 import Role from '../models/Role.js';
 
+// Helper function to check if user has permission
+export const hasPermission = (user, permission) => {
+  if (!user) return false;
+  
+  // Parse permission string (e.g., 'analytics:read' -> resource='analytics', action='read')
+  const [resource, action] = permission.split(':');
+  return user.hasPermission(resource, action);
+};
+
 // Middleware to check if user has required permission
 export const checkPermission = (resource, action) => {
   return async (req, res, next) => {
