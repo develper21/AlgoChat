@@ -7,14 +7,20 @@ import * as tf from '@tensorflow/tfjs-node';
 
 class AIService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    // Initialize OpenAI only if API key is available
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+    }
     
-    this.translateClient = new Translate({
-      projectId: process.env.GOOGLE_PROJECT_ID,
-      keyFilename: process.env.GOOGLE_KEY_FILE
-    });
+    // Initialize Google Translate only if credentials are available
+    if (process.env.GOOGLE_PROJECT_ID && process.env.GOOGLE_KEY_FILE) {
+      this.translateClient = new Translate({
+        projectId: process.env.GOOGLE_PROJECT_ID,
+        keyFilename: process.env.GOOGLE_KEY_FILE
+      });
+    }
     
     this.filter = new Filter();
     this.sentiment = new Sentiment();
@@ -42,6 +48,10 @@ class AIService {
   // Smart Message Suggestions
   async getMessageSuggestions(context, userHistory = [], roomContext = {}) {
     try {
+      if (!this.openai) {
+        throw new Error('OpenAI service not available');
+      }
+      
       const messages = await this.openai.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
@@ -88,6 +98,11 @@ class AIService {
     try {
       if (!text || !text.trim()) return text;
       
+      if (!this.translateClient) {
+        console.warn('Google Translate service not available');
+        return text;
+      }
+      
       const [translation] = await this.translateClient.translate(text, {
         from: sourceLanguage,
         to: targetLanguage
@@ -102,6 +117,11 @@ class AIService {
 
   async detectLanguage(text) {
     try {
+      if (!this.translateClient) {
+        console.warn('Google Translate service not available');
+        return 'en'; // Default to English
+      }
+      
       const [detection] = await this.translateClient.detect(text);
       return detection[0].language;
     } catch (error) {
@@ -255,6 +275,10 @@ class AIService {
   // Chatbot Assistant
   async getChatbotResponse(message, conversationHistory = [], userContext = {}) {
     try {
+      if (!this.openai) {
+        throw new Error('OpenAI service not available');
+      }
+      
       const systemPrompt = `You are a helpful AI assistant for a chat application. 
       Be friendly, helpful, and concise. If you don't know something, admit it. 
       Keep responses under 150 words unless more detail is needed.`;
