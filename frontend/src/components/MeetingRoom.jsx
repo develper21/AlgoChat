@@ -34,13 +34,13 @@ const MeetingRoom = () => {
 
   // Initialize socket connection
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('algonive_token');
     if (!token) {
       navigate('/login');
       return;
     }
 
-    socketRef.current = io(process.env.REACT_APP_SERVER_URL, {
+    socketRef.current = io(import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL, {
       auth: { token }
     });
 
@@ -100,32 +100,32 @@ const MeetingRoom = () => {
     socketRef.current.on('ice-candidate', handleIceCandidate);
 
     socketRef.current.on('participantAudioChanged', ({ userId, isMuted }) => {
-      setParticipants(prev => 
-        prev.map(p => 
+      setParticipants(prev =>
+        prev.map(p =>
           p.user._id === userId ? { ...p, isMuted } : p
         )
       );
     });
 
     socketRef.current.on('participantVideoChanged', ({ userId, isVideoOff }) => {
-      setParticipants(prev => 
-        prev.map(p => 
+      setParticipants(prev =>
+        prev.map(p =>
           p.user._id === userId ? { ...p, isVideoOff } : p
         )
       );
     });
 
     socketRef.current.on('participantScreenShareChanged', ({ userId, isScreenSharing }) => {
-      setParticipants(prev => 
-        prev.map(p => 
+      setParticipants(prev =>
+        prev.map(p =>
           p.user._id === userId ? { ...p, isScreenSharing } : p
         )
       );
     });
 
     socketRef.current.on('participantHandRaised', ({ userId, handRaised }) => {
-      setParticipants(prev => 
-        prev.map(p => 
+      setParticipants(prev =>
+        prev.map(p =>
           p.user._id === userId ? { ...p, handRaised } : p
         )
       );
@@ -167,9 +167,9 @@ const MeetingRoom = () => {
         video: true,
         audio: true
       });
-      
+
       localStreamRef.current = stream;
-      
+
       if (webcamRef.current) {
         webcamRef.current.srcObject = stream;
       }
@@ -196,7 +196,7 @@ const MeetingRoom = () => {
     };
 
     const peerConnection = new RTCPeerConnection(configuration);
-    
+
     // Add local stream to peer connection
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
@@ -223,7 +223,7 @@ const MeetingRoom = () => {
     };
 
     peersRef.current[userId] = peerConnection;
-    
+
     // Create and send offer if we are the host
     if (localUser?.isHost) {
       peerConnection.createOffer()
@@ -244,11 +244,11 @@ const MeetingRoom = () => {
   // WebRTC signal handlers
   const handleOffer = async ({ fromUserId, offer }) => {
     const peerConnection = peersRef.current[fromUserId] || createPeerConnection(fromUserId);
-    
+
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
-    
+
     if (socketRef.current) {
       socketRef.current.emit('answer', {
         targetUserId: fromUserId,
@@ -278,7 +278,7 @@ const MeetingRoom = () => {
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsAudioMuted(!audioTrack.enabled);
-        
+
         if (socketRef.current) {
           socketRef.current.emit('toggleAudio', { isMuted: !audioTrack.enabled });
         }
@@ -292,7 +292,7 @@ const MeetingRoom = () => {
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoOff(!videoTrack.enabled);
-        
+
         if (socketRef.current) {
           socketRef.current.emit('toggleVideo', { isVideoOff: !videoTrack.enabled });
         }
@@ -307,28 +307,28 @@ const MeetingRoom = () => {
           video: true,
           audio: true
         });
-        
+
         screenStreamRef.current = screenStream;
         setIsScreenSharing(true);
-        
+
         if (screenShareRef.current) {
           screenShareRef.current.srcObject = screenStream;
         }
-        
+
         // Add screen share to all peer connections
         Object.values(peersRef.current).forEach(peerConnection => {
-          const sender = peerConnection.getSenders().find(s => 
+          const sender = peerConnection.getSenders().find(s =>
             s.track && s.track.kind === 'video'
           );
           if (sender) {
             sender.replaceTrack(screenStream.getVideoTracks()[0]);
           }
         });
-        
+
         if (socketRef.current) {
           socketRef.current.emit('toggleScreenShare', { isScreenSharing: true });
         }
-        
+
         // Handle screen share end
         screenStream.getVideoTracks()[0].onended = () => {
           stopScreenShare();
@@ -347,13 +347,13 @@ const MeetingRoom = () => {
       screenStreamRef.current.getTracks().forEach(track => track.stop());
       screenStreamRef.current = null;
     }
-    
+
     setIsScreenSharing(false);
-    
+
     // Restore camera video
     if (localStreamRef.current && webcamRef.current) {
       Object.values(peersRef.current).forEach(peerConnection => {
-        const sender = peerConnection.getSenders().find(s => 
+        const sender = peerConnection.getSenders().find(s =>
           s.track && s.track.kind === 'video'
         );
         if (sender) {
@@ -361,7 +361,7 @@ const MeetingRoom = () => {
         }
       });
     }
-    
+
     if (socketRef.current) {
       socketRef.current.emit('toggleScreenShare', { isScreenSharing: false });
     }
@@ -370,7 +370,7 @@ const MeetingRoom = () => {
   const toggleHandRaise = () => {
     const newHandRaised = !handRaised;
     setHandRaised(newHandRaised);
-    
+
     if (socketRef.current) {
       socketRef.current.emit('raiseHand', { handRaised: newHandRaised });
     }
@@ -380,7 +380,7 @@ const MeetingRoom = () => {
     if (socketRef.current) {
       socketRef.current.emit('leaveMeeting');
     }
-    
+
     // Stop all streams
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -388,12 +388,12 @@ const MeetingRoom = () => {
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach(track => track.stop());
     }
-    
+
     // Close all peer connections
     Object.values(peersRef.current).forEach(peerConnection => {
       peerConnection.close();
     });
-    
+
     navigate('/meetings');
   };
 
@@ -514,21 +514,21 @@ const MeetingRoom = () => {
           >
             {isAudioMuted ? <FiMicOff /> : <FiMic />}
           </button>
-          
+
           <button
             onClick={toggleVideo}
             className={`control-btn ${isVideoOff ? 'video-off' : ''}`}
           >
             {isVideoOff ? <FiVideoOff /> : <FiVideo />}
           </button>
-          
+
           <button
             onClick={toggleScreenShare}
             className={`control-btn ${isScreenSharing ? 'active' : ''}`}
           >
             <FiMonitor />
           </button>
-          
+
           <button
             onClick={toggleHandRaise}
             className={`control-btn ${handRaised ? 'active' : ''}`}
@@ -550,18 +550,18 @@ const MeetingRoom = () => {
           >
             <FiMessageSquare />
           </button>
-          
+
           <button
             onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
             className={`control-btn ${isParticipantsOpen ? 'active' : ''}`}
           >
             <FiUsers />
           </button>
-          
+
           <button onClick={toggleFullscreen} className="control-btn">
             {isFullscreen ? <FiMinimize2 /> : <FiMaximize2 />}
           </button>
-          
+
           <button className="control-btn">
             <FiSettings />
           </button>
