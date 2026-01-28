@@ -13,7 +13,7 @@ class AnalyticsService {
 
     // Add auth interceptor
     this.api.interceptors.request.use((config) => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('algonive_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -165,7 +165,7 @@ class AnalyticsService {
   async trackPageView(page, metadata = {}) {
     return this.trackEvent({
       eventType: 'page_view',
-      userId: localStorage.getItem('userId') || 'anonymous',
+      userId: localStorage.getItem('algonive_user') ? JSON.parse(localStorage.getItem('algonive_user'))?._id : 'anonymous',
       sessionId: sessionStorage.getItem('sessionId') || 'unknown',
       metadata: { page, ...metadata },
       userAgent: navigator.userAgent,
@@ -177,7 +177,7 @@ class AnalyticsService {
   async trackFeatureUsage(feature, metadata = {}) {
     return this.trackEvent({
       eventType: 'feature_used',
-      userId: localStorage.getItem('userId') || 'anonymous',
+      userId: localStorage.getItem('algonive_user') ? JSON.parse(localStorage.getItem('algonive_user'))?._id : 'anonymous',
       sessionId: sessionStorage.getItem('sessionId') || 'unknown',
       metadata: { feature, ...metadata },
       userAgent: navigator.userAgent,
@@ -190,7 +190,7 @@ class AnalyticsService {
     const userAgent = navigator.userAgent;
     const isMobile = /Mobile|Android|iPhone|iPad/.test(userAgent);
     const isTablet = /iPad|Tablet/.test(userAgent);
-    
+
     return {
       type: isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop',
       os: this.extractOS(userAgent),
