@@ -37,6 +37,7 @@ import User from './models/User.js';
 import Role from './models/Role.js';
 import { sendPushNotifications } from './utils/push.js';
 import { formatMessage } from './utils/messageFormatter.js';
+import { setEmitRoomUpdate } from './utils/socket.js';
 import { errorHandler } from './utils/errorHandler.js';
 import messageScheduler from './utils/scheduler.js';
 import aiService from './services/aiService.js';
@@ -114,9 +115,14 @@ app.use(errorHandler);
 
 const startServer = async () => {
   try {
-    // Initialize cache
-    await cacheService.connect();
-    Logger.info('Cache service initialized');
+    // Initialize cache (optional)
+    try {
+      await cacheService.connect();
+      Logger.info('Cache service initialized');
+    } catch (error) {
+      console.warn('Cache service not available:', error.message);
+      Logger.warn('Cache service not available, continuing without cache');
+    }
     
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
@@ -161,6 +167,9 @@ io.use(socketAuth);
 const emitRoomUpdate = (roomId, event, payload) => {
   io.to(roomId.toString()).emit(event, payload);
 };
+
+// Set the emit function in the socket utility
+setEmitRoomUpdate(emitRoomUpdate);
 
 // Track connection analytics
 io.on('connection', (socket) => {
