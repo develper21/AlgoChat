@@ -22,7 +22,7 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['X-Total-Count'],
+  exposedHeaders: ['X-Total-Count', 'Access-Control-Allow-Origin'],
   optionsSuccessStatus: 200
 };
 
