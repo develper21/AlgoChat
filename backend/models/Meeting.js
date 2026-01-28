@@ -194,7 +194,6 @@ meetingSchema.pre('save', function(next) {
   next();
 });
 
-meetingSchema.index({ meetingId: 1 });
 meetingSchema.index({ host: 1 });
 meetingSchema.index({ 'participants.user': 1 });
 meetingSchema.index({ scheduledFor: 1 });
