@@ -1,5 +1,5 @@
 import React from 'react';
-import { ERROR_SEVERITY } from '../utils/errorHandler.js';
+import { ERROR_SEVERITY } from '../utils/errorHandler.jsx';
 
 const ErrorDisplay = ({ error, onClose, onRetry }) => {
   if (!error) return null;
@@ -47,12 +47,12 @@ const ErrorDisplay = ({ error, onClose, onRetry }) => {
             {severity === ERROR_SEVERITY.CRITICAL ? 'Critical Error' : 'Error'}
           </h3>
           <p className="text-sm mt-1">{error.message}</p>
-          
+
           {/* Show additional info for development */}
-          {process.env.NODE_ENV === 'development' && error.code && (
+          {import.meta.env.DEV && error.code && (
             <p className="text-xs mt-1 opacity-75">Code: {error.code}</p>
           )}
-          
+
           {/* Action buttons */}
           <div className="flex gap-2 mt-3">
             {onRetry && (
