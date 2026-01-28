@@ -46,7 +46,7 @@ const MeetingRecording = ({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
@@ -56,7 +56,7 @@ const MeetingRecording = ({
   const startRecording = async () => {
     try {
       const selectedQuality = qualities.find(q => q.value === recordingQuality);
-      
+
       // Create canvas for recording
       const canvas = document.createElement('canvas');
       canvas.width = selectedQuality.width;
@@ -65,7 +65,7 @@ const MeetingRecording = ({
 
       // Get all video streams
       const streams = [];
-      
+
       if (recordVideo) {
         const localVideo = document.querySelector('.local-video video');
         if (localVideo && localVideo.srcObject) {
@@ -107,9 +107,9 @@ const MeetingRecording = ({
       // Create media recorder
       const options = {
         mimeType: 'video/webm;codecs=vp9,opus',
-        videoBitsPerSecond: recordingQuality === '1080p' ? 5000000 : 
-                           recordingQuality === '720p' ? 2500000 : 
-                           recordingQuality === '480p' ? 1000000 : 500000
+        videoBitsPerSecond: recordingQuality === '1080p' ? 5000000 :
+          recordingQuality === '720p' ? 2500000 :
+            recordingQuality === '480p' ? 1000000 : 500000
       };
 
       mediaRecorderRef.current = new MediaRecorder(combinedStream, options);
@@ -138,12 +138,12 @@ const MeetingRecording = ({
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
-      
+
       // Stop all tracks
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
-      
+
       onStopRecording();
     }
   };
@@ -165,7 +165,7 @@ const MeetingRecording = ({
   const handleRecordingComplete = async (blob) => {
     // Create download URL
     const url = URL.createObjectURL(blob);
-    
+
     if (autoSave || storageLocation === 'cloud') {
       // Upload to cloud storage
       try {
@@ -174,15 +174,15 @@ const MeetingRecording = ({
         formData.append('meetingId', meeting._id);
         formData.append('duration', recordingDuration);
         formData.append('quality', recordingQuality);
-        
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/meetings/${meeting._id}/upload-recording`, {
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/meetings/${meeting._id}/upload-recording`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('algonive_token')}`
           },
           body: formData
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('Recording uploaded successfully:', data);
@@ -191,7 +191,7 @@ const MeetingRecording = ({
         console.error('Error uploading recording:', error);
       }
     }
-    
+
     if (storageLocation === 'local' || !autoSave) {
       // Trigger download
       const a = document.createElement('a');
@@ -226,7 +226,7 @@ const MeetingRecording = ({
               <div className="recording-dot"></div>
               <span>REC {formatDuration(recordingDuration || 0)}</span>
             </div>
-            
+
             <div className="recording-actions">
               {!isPaused ? (
                 <button
@@ -245,7 +245,7 @@ const MeetingRecording = ({
                   <FiPlay />
                 </button>
               )}
-              
+
               <button
                 onClick={stopRecording}
                 className="record-btn stop-record"
@@ -256,7 +256,7 @@ const MeetingRecording = ({
             </div>
           </div>
         )}
-        
+
         <button
           onClick={() => setShowSettings(!showSettings)}
           className={`record-btn settings-btn ${showSettings ? 'active' : ''}`}
@@ -269,7 +269,7 @@ const MeetingRecording = ({
       {showSettings && (
         <div className="recording-settings">
           <h4>Recording Settings</h4>
-          
+
           <div className="setting-group">
             <label>Video Quality</label>
             <select
