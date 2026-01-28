@@ -77,7 +77,7 @@ const ChatWindow = ({
         </div>
       </header>
       <div className="chat-body">
-        {messages.map((message) => (
+        {Array.isArray(messages) && messages.map((message) => (
           <MessageBubble
             key={message._id}
             message={message}
