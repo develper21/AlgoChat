@@ -210,7 +210,6 @@ roleSchema.pre('remove', async function(next) {
 });
 
 // Indexes
-roleSchema.index({ name: 1 });
 roleSchema.index({ isActive: 1 });
 roleSchema.index({ isSystem: 1 });
 roleSchema.index({ priority: -1 });
