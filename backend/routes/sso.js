@@ -9,13 +9,14 @@ import { logUserAction, logSecurityEvent } from '../middleware/audit.js';
 
 const router = express.Router();
 
-// Configure Google OAuth2 Strategy
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: `${process.env.REACT_APP_API_URL}/api/sso/google/callback`,
-  scope: ['profile', 'email']
-}, async (accessToken, refreshToken, profile, done) => {
+// Configure Google OAuth2 Strategy (only if credentials are available)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: `${process.env.REACT_APP_API_URL}/api/sso/google/callback`,
+    scope: ['profile', 'email']
+  }, async (accessToken, refreshToken, profile, done) => {
   try {
     // Find or create user
     let user = await User.findOne({
@@ -72,9 +73,11 @@ passport.use(new GoogleStrategy({
     return done(error, null);
   }
 }));
+}
 
-// Configure Microsoft OAuth2 Strategy
-passport.use(new MicrosoftStrategy({
+// Configure Microsoft OAuth2 Strategy (only if credentials are available)
+if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
+  passport.use(new MicrosoftStrategy({
   clientID: process.env.MICROSOFT_CLIENT_ID,
   clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
   callbackURL: `${process.env.REACT_APP_API_URL}/api/sso/microsoft/callback`,
@@ -133,9 +136,11 @@ passport.use(new MicrosoftStrategy({
     return done(error, null);
   }
 }));
+}
 
-// Configure SAML Strategy (for enterprise SSO)
-passport.use(new SamlStrategy({
+// Configure SAML Strategy (for enterprise SSO) - only if SAML credentials are available
+if (process.env.SAML_ENTRY_POINT && process.env.SAML_ISSUER && process.env.SAML_CERT) {
+  passport.use(new SamlStrategy({
   entryPoint: process.env.SAML_ENTRY_POINT,
   issuer: process.env.SAML_ISSUER,
   callbackUrl: `${process.env.REACT_APP_API_URL}/api/sso/saml/callback`,
@@ -192,6 +197,7 @@ passport.use(new SamlStrategy({
     return done(error, null);
   }
 }));
+}
 
 // Serialize user for session
 passport.serializeUser((user, done) => {
