@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { sendMessage, editMessage, deleteMessage } from '../controllers/messageController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
+import authMiddleware from '../middleware/auth.js';
 import Message from '../models/Message.js';
 import Room from '../models/Room.js';
 import { emitRoomUpdate, formatMessage } from '../utils/socket.js';
