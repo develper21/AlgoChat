@@ -14,14 +14,14 @@ const Message = ({ message, isOwn = false }) => {
   }, [inView, addMetric]);
 
   const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
   return (
-    <div 
+    <div
       ref={ref}
       className={`message ${isOwn ? 'own' : 'other'}`}
       data-message-id={message._id}
@@ -30,13 +30,13 @@ const Message = ({ message, isOwn = false }) => {
         <span className="sender-name">{message.sender.name}</span>
         <span className="message-time">{formatTime(message.createdAt)}</span>
       </div>
-      
+
       {message.text && (
         <div className="message-content">
           {message.text}
         </div>
       )}
-      
+
       {message.fileUrl && (
         <div className="message-attachment">
           {message.fileType === 'image' ? (
@@ -55,7 +55,7 @@ const Message = ({ message, isOwn = false }) => {
           )}
         </div>
       )}
-      
+
       {message.reactions && message.reactions.length > 0 && (
         <div className="message-reactions">
           {message.reactions.map((reaction, index) => (
@@ -65,7 +65,7 @@ const Message = ({ message, isOwn = false }) => {
           ))}
         </div>
       )}
-      
+
       {message.edited && (
         <span className="edited-indicator">(edited)</span>
       )}
@@ -85,10 +85,14 @@ const ChatRoom = ({ roomId, currentUser }) => {
     if (loading || !hasMore) return false;
 
     setLoading(true);
-    
+
     try {
       const response = await apiCall('load_messages', async () => {
-        const res = await fetch(`/api/rooms/${roomId}/messages?page=${page}&limit=50`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/rooms/${roomId}/messages?page=${page}&limit=50`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('algonive_token')}`
+          }
+        });
         if (!res.ok) throw new Error('Failed to load messages');
         return res.json();
       });
@@ -122,15 +126,15 @@ const ChatRoom = ({ roomId, currentUser }) => {
           hasMore={hasMore}
           isLoading={loading}
           messageComponent={(props) => (
-            <Message 
-              {...props} 
+            <Message
+              {...props}
               isOwn={props.message.sender._id === currentUser._id}
             />
           )}
           className="messages-list"
         />
       </div>
-      
+
       <MessageInput roomId={roomId} onNewMessage={handleNewMessage} />
     </div>
   );
@@ -148,11 +152,11 @@ const MessageInput = ({ roomId, onNewMessage }) => {
 
     await measureFunction('send_message', async () => {
       try {
-        const response = await fetch('/api/messages', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('algonive_token')}`
           },
           body: JSON.stringify({
             roomId,
@@ -161,7 +165,7 @@ const MessageInput = ({ roomId, onNewMessage }) => {
         });
 
         if (!response.ok) throw new Error('Failed to send message');
-        
+
         const newMessage = await response.json();
         onNewMessage(newMessage);
         setText('');
@@ -173,12 +177,12 @@ const MessageInput = ({ roomId, onNewMessage }) => {
 
   const handleTyping = (e) => {
     setText(e.target.value);
-    
+
     if (!isTyping) {
       setIsTyping(true);
       // Emit typing event to socket
     }
-    
+
     // Debounce typing stop
     setTimeout(() => {
       setIsTyping(false);
@@ -196,8 +200,8 @@ const MessageInput = ({ roomId, onNewMessage }) => {
           className="message-input"
           maxLength={2000}
         />
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={!text.trim()}
           className="send-button"
         >
@@ -226,7 +230,7 @@ const RoomList = ({ rooms, currentRoom, onRoomSelect }) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInHours = (now - date) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 24) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (diffInHours < 24 * 7) {
@@ -258,7 +262,7 @@ const RoomList = ({ rooms, currentRoom, onRoomSelect }) => {
               </div>
             )}
           </div>
-          
+
           <div className="room-info">
             <div className="room-header">
               <h3 className="room-name">
@@ -268,7 +272,7 @@ const RoomList = ({ rooms, currentRoom, onRoomSelect }) => {
                 {formatTime(room.lastMessageAt)}
               </span>
             </div>
-            
+
             <div className="room-preview">
               <p className="last-message">{formatLastMessage(room)}</p>
               {room.unreadCount > 0 && (
@@ -304,7 +308,7 @@ const UserAvatar = ({ user, size = 'medium', showStatus = true }) => {
           {user.name?.[0]?.toUpperCase() || '?'}
         </div>
       )}
-      
+
       {showStatus && (
         <div className={`status-indicator ${user.isOnline ? 'online' : 'offline'}`} />
       )}
@@ -326,14 +330,14 @@ const Chat = ({ currentUser }) => {
   const loadRooms = async () => {
     try {
       const response = await apiCall('load_rooms', async () => {
-        const res = await fetch('/api/rooms', {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/rooms`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('algonive_token')}`
           }
         });
         return res.json();
       });
-      
+
       setRooms(response);
     } catch (error) {
       console.error('Error loading rooms:', error);
@@ -355,7 +359,7 @@ const Chat = ({ currentUser }) => {
           onRoomSelect={setCurrentRoom}
         />
       </div>
-      
+
       <div className="main-chat">
         {currentRoom ? (
           <ChatRoom roomId={currentRoom} currentUser={currentUser} />
