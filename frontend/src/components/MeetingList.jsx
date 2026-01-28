@@ -32,9 +32,9 @@ const MeetingList = () => {
 
   const fetchMeetings = async () => {
     try {
-      const token = localStorage.getItem('token');
-      let url = `${process.env.REACT_APP_API_URL}/api/meetings/my-meetings`;
-      
+      const token = localStorage.getItem('algonive_token');
+      let url = `${import.meta.env.VITE_API_URL}/api/meetings/my-meetings`;
+
       if (filter !== 'all') {
         url += `?status=${filter}`;
       }
@@ -61,8 +61,8 @@ const MeetingList = () => {
   const createMeeting = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/meetings`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/meetings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,8 +105,8 @@ const MeetingList = () => {
   const joinMeeting = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/meetings/join`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/meetings/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,8 +136,8 @@ const MeetingList = () => {
 
   const startMeeting = async (meetingId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/meetings/${meetingId}/start`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/meetings/${meetingId}/start`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -161,8 +161,8 @@ const MeetingList = () => {
     if (!confirm('Are you sure you want to end this meeting?')) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/meetings/${meetingId}/end`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/meetings/${meetingId}/end`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -185,8 +185,8 @@ const MeetingList = () => {
     if (!confirm('Are you sure you want to delete this meeting?')) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/meetings/${meetingId}`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/meetings/${meetingId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -244,13 +244,13 @@ const MeetingList = () => {
       <div className="meeting-list-header">
         <h1>Meetings</h1>
         <div className="header-actions">
-          <button 
+          <button
             onClick={() => setShowJoinModal(true)}
             className="btn btn-secondary"
           >
             <FiVideo /> Join Meeting
           </button>
-          <button 
+          <button
             onClick={() => setShowCreateModal(true)}
             className="btn btn-primary"
           >
@@ -260,25 +260,25 @@ const MeetingList = () => {
       </div>
 
       <div className="meeting-filters">
-        <button 
+        <button
           className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
           onClick={() => setFilter('all')}
         >
           All Meetings
         </button>
-        <button 
+        <button
           className={`filter-btn ${filter === 'scheduled' ? 'active' : ''}`}
           onClick={() => setFilter('scheduled')}
         >
           Scheduled
         </button>
-        <button 
+        <button
           className={`filter-btn ${filter === 'started' ? 'active' : ''}`}
           onClick={() => setFilter('started')}
         >
           Active
         </button>
-        <button 
+        <button
           className={`filter-btn ${filter === 'ended' ? 'active' : ''}`}
           onClick={() => setFilter('ended')}
         >
@@ -304,11 +304,11 @@ const MeetingList = () => {
                   </button>
                 </div>
               </div>
-              
+
               {meeting.description && (
                 <div className="meeting-description">{meeting.description}</div>
               )}
-              
+
               <div className="meeting-meta">
                 <div className="meta-item">
                   <FiCalendar />
@@ -331,13 +331,13 @@ const MeetingList = () => {
               </div>
 
               <div className="meeting-badges">
-                <span 
+                <span
                   className="status-badge"
                   style={{ backgroundColor: getStatusColor(meeting.status) }}
                 >
                   {meeting.status}
                 </span>
-                <span 
+                <span
                   className="category-badge"
                   style={{ backgroundColor: getCategoryColor(meeting.category) }}
                 >
@@ -349,7 +349,7 @@ const MeetingList = () => {
                 <div className="meeting-id">ID: {meeting.meetingId}</div>
                 <div className="meeting-actions-footer">
                   {meeting.status === 'scheduled' && (
-                    <button 
+                    <button
                       onClick={() => startMeeting(meeting._id)}
                       className="btn btn-success btn-sm"
                     >
@@ -357,23 +357,23 @@ const MeetingList = () => {
                     </button>
                   )}
                   {meeting.status === 'started' && (
-                    <button 
+                    <button
                       onClick={() => navigate(`/meeting/${meeting._id}`)}
                       className="btn btn-primary btn-sm"
                     >
                       Join
                     </button>
                   )}
-                  {meeting.status === 'started' && meeting.host._id === localStorage.getItem('userId') && (
-                    <button 
+                  {meeting.status === 'started' && meeting.host._id === JSON.parse(localStorage.getItem('algonive_user'))?._id && (
+                    <button
                       onClick={() => endMeeting(meeting._id)}
                       className="btn btn-danger btn-sm"
                     >
                       End
                     </button>
                   )}
-                  {meeting.status !== 'started' && meeting.host._id === localStorage.getItem('userId') && (
-                    <button 
+                  {meeting.status !== 'started' && meeting.host._id === JSON.parse(localStorage.getItem('algonive_user'))?._id && (
+                    <button
                       onClick={() => deleteMeeting(meeting._id)}
                       className="btn btn-danger btn-sm"
                     >
@@ -402,16 +402,16 @@ const MeetingList = () => {
                   type="text"
                   required
                   value={newMeeting.title}
-                  onChange={(e) => setNewMeeting({...newMeeting, title: e.target.value})}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })}
                   placeholder="Enter meeting title"
                 />
               </div>
-              
+
               <div className="form-group">
                 <label>Description</label>
                 <textarea
                   value={newMeeting.description}
-                  onChange={(e) => setNewMeeting({...newMeeting, description: e.target.value})}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, description: e.target.value })}
                   placeholder="Enter meeting description"
                   rows={3}
                 />
@@ -423,10 +423,10 @@ const MeetingList = () => {
                   <input
                     type="datetime-local"
                     value={newMeeting.scheduledFor}
-                    onChange={(e) => setNewMeeting({...newMeeting, scheduledFor: e.target.value})}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, scheduledFor: e.target.value })}
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Duration (minutes)</label>
                   <input
@@ -434,7 +434,7 @@ const MeetingList = () => {
                     min="15"
                     max="480"
                     value={newMeeting.duration}
-                    onChange={(e) => setNewMeeting({...newMeeting, duration: parseInt(e.target.value)})}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, duration: parseInt(e.target.value) })}
                   />
                 </div>
               </div>
@@ -447,15 +447,15 @@ const MeetingList = () => {
                     min="2"
                     max="1000"
                     value={newMeeting.maxParticipants}
-                    onChange={(e) => setNewMeeting({...newMeeting, maxParticipants: parseInt(e.target.value)})}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, maxParticipants: parseInt(e.target.value) })}
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Access Type</label>
                   <select
                     value={newMeeting.accessType}
-                    onChange={(e) => setNewMeeting({...newMeeting, accessType: e.target.value})}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, accessType: e.target.value })}
                   >
                     <option value="private">Private</option>
                     <option value="public">Public</option>
@@ -470,7 +470,7 @@ const MeetingList = () => {
                   <input
                     type="password"
                     value={newMeeting.password}
-                    onChange={(e) => setNewMeeting({...newMeeting, password: e.target.value})}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, password: e.target.value })}
                     placeholder="Optional password"
                   />
                 </div>
@@ -480,7 +480,7 @@ const MeetingList = () => {
                 <label>Category</label>
                 <select
                   value={newMeeting.category}
-                  onChange={(e) => setNewMeeting({...newMeeting, category: e.target.value})}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, category: e.target.value })}
                 >
                   <option value="general">General</option>
                   <option value="business">Business</option>
@@ -497,7 +497,7 @@ const MeetingList = () => {
                     <input
                       type="checkbox"
                       checked={newMeeting.allowScreenShare}
-                      onChange={(e) => setNewMeeting({...newMeeting, allowScreenShare: e.target.checked})}
+                      onChange={(e) => setNewMeeting({ ...newMeeting, allowScreenShare: e.target.checked })}
                     />
                     Allow Screen Sharing
                   </label>
@@ -505,7 +505,7 @@ const MeetingList = () => {
                     <input
                       type="checkbox"
                       checked={newMeeting.allowRecording}
-                      onChange={(e) => setNewMeeting({...newMeeting, allowRecording: e.target.checked})}
+                      onChange={(e) => setNewMeeting({ ...newMeeting, allowRecording: e.target.checked })}
                     />
                     Allow Recording
                   </label>
@@ -513,7 +513,7 @@ const MeetingList = () => {
                     <input
                       type="checkbox"
                       checked={newMeeting.allowChat}
-                      onChange={(e) => setNewMeeting({...newMeeting, allowChat: e.target.checked})}
+                      onChange={(e) => setNewMeeting({ ...newMeeting, allowChat: e.target.checked })}
                     />
                     Allow Chat
                   </label>
@@ -552,7 +552,7 @@ const MeetingList = () => {
                   placeholder="Enter meeting code"
                 />
               </div>
-              
+
               <div className="form-group">
                 <label>Password (if required)</label>
                 <input
