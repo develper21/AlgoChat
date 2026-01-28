@@ -25,33 +25,33 @@ const analyticsEventSchema = new mongoose.Schema({
       'feature_used'
     ]
   },
-  
+
   // User information
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  sessionId: { type: String, required: true },
-  
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  sessionId: { type: String },
+
   // Context information
   roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
   messageId: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
   metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
-  
+
   // Timestamp and performance
   timestamp: { type: Date, default: Date.now },
   responseTime: { type: Number }, // in milliseconds
   userAgent: { type: String },
   ipAddress: { type: String },
-  
+
   // Geographic data
   country: { type: String },
   city: { type: String },
-  
+
   // Device information
   device: {
     type: { type: String, enum: ['desktop', 'mobile', 'tablet'] },
     os: { type: String },
     browser: { type: String }
   }
-}, { 
+}, {
   timestamps: true,
   // Indexing for performance
   index: [
