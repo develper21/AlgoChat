@@ -13,7 +13,7 @@ class AIService {
 
     // Add auth interceptor
     this.api.interceptors.request.use((config) => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('algonive_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -29,7 +29,7 @@ class AIService {
         roomId,
         maxSuggestions
       });
-      
+
       if (response.data.success) {
         return response.data.data.suggestions;
       } else {
@@ -59,7 +59,7 @@ class AIService {
         targetLanguage,
         sourceLanguage
       });
-      
+
       if (response.data.success) {
         return response.data.data;
       } else {
@@ -83,7 +83,7 @@ class AIService {
       const response = await this.api.post('/ai/detect-language', {
         text
       });
-      
+
       if (response.data.success) {
         return response.data.data.detectedLanguage;
       } else {
@@ -103,7 +103,7 @@ class AIService {
         roomId,
         conversationHistory
       });
-      
+
       if (response.data.success) {
         return response.data.data.response;
       } else {
@@ -122,7 +122,7 @@ class AIService {
         message,
         roomId
       });
-      
+
       if (response.data.success) {
         return response.data.data;
       } else {
@@ -142,7 +142,7 @@ class AIService {
   async getRoomInsights(roomId) {
     try {
       const response = await this.api.get(`/ai/room-insights/${roomId}`);
-      
+
       if (response.data.success) {
         return response.data.data;
       } else {
@@ -166,16 +166,16 @@ class AIService {
   async autoTranslateMessage(message, userLanguage) {
     try {
       if (!message || !message.trim()) return message;
-      
+
       const detectedLanguage = await this.detectLanguage(message);
-      
+
       // Skip if same language or if detection failed
       if (detectedLanguage === userLanguage || detectedLanguage === 'unknown') {
         return message;
       }
-      
+
       const translation = await this.translateText(message, userLanguage, detectedLanguage);
-      
+
       return translation.wasTranslated ? translation.translatedText : message;
     } catch (error) {
       console.error('Auto-translation error:', error);
