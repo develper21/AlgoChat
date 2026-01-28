@@ -31,8 +31,8 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/dashboard`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -52,13 +52,13 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('algonive_token');
       const params = new URLSearchParams({
         search: searchTerm,
         ...filters
       });
-      
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/users?${params}`, {
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/users?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -78,8 +78,8 @@ const AdminDashboard = () => {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/roles`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/roles`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -99,8 +99,8 @@ const AdminDashboard = () => {
   const fetchAuditLogs = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/audit`, {
+      const token = localStorage.getItem('algonive_token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/audit`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -119,8 +119,8 @@ const AdminDashboard = () => {
 
   const handleUserAction = async (action, userId, userData = {}) => {
     try {
-      const token = localStorage.getItem('token');
-      let url = `${process.env.REACT_APP_API_URL}/api/admin/users/${userId}`;
+      const token = localStorage.getItem('algonive_token');
+      let url = `${import.meta.env.VITE_API_URL}/api/admin/users/${userId}`;
       let method = 'PUT';
 
       if (action === 'delete') {
