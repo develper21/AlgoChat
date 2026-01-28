@@ -5,6 +5,10 @@ export const subscribe = async (req, res) => {
       return res.status(400).json({ message: 'Invalid subscription' });
     }
 
+    if (!req.user.pushSubscriptions) {
+      req.user.pushSubscriptions = [];
+    }
+
     const exists = req.user.pushSubscriptions.some((sub) => sub.endpoint === subscription.endpoint);
     if (!exists) {
       req.user.pushSubscriptions.push(subscription);
