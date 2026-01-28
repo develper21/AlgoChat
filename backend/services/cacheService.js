@@ -13,9 +13,13 @@ class CacheService {
         host: process.env.REDIS_HOST || 'localhost',
         port: process.env.REDIS_PORT || 6379,
         password: process.env.REDIS_PASSWORD || undefined,
-        retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3,
-        lazyConnect: true
+        maxRetriesPerRequest: 0, // Disable retries
+        enableOfflineQueue: false, // Disable offline queue
+        lazyConnect: true,
+        connectTimeout: 3000, // 3 second timeout
+        commandTimeout: 2000, // 2 second timeout
+        retryDelayOnFailover: 0, // Disable retry delay
+        autoReconnect: false // Disable auto reconnect
       });
 
       this.redis.on('connect', () => {
@@ -33,10 +37,21 @@ class CacheService {
         this.connected = false;
       });
 
-      await this.redis.connect();
+      // Try to connect with timeout
+      try {
+        await Promise.race([
+          this.redis.connect(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Redis connection timeout')), 2000)
+          )
+        ]);
+      } catch (error) {
+        throw error; // Re-throw to be caught by outer try-catch
+      }
     } catch (error) {
-      console.error('Failed to connect to Redis:', error);
+      console.error('Failed to connect to Redis:', error.message);
       this.connected = false;
+      throw error; // Re-throw so the calling code knows it failed
     }
   }
 
