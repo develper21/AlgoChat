@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import Login from './components/Login.jsx';
+import Register from './components/Register.jsx';
 import TwoFactorSetup from './components/TwoFactorSetup.jsx';
 import ScheduledMessagesList from './components/ScheduledMessagesList.jsx';
 import ForgotPassword from './components/ForgotPassword.jsx';
@@ -129,13 +130,13 @@ const ChatLayout = ({ auth }) => {
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId
-            ? { 
-                ...msg, 
-                readBy: [...(msg.readBy || []), readBy].filter(
-                  (read, index, self) => 
-                    index === self.findIndex((r) => r.user === read.user)
-                )
-              }
+            ? {
+              ...msg,
+              readBy: [...(msg.readBy || []), readBy].filter(
+                (read, index, self) =>
+                  index === self.findIndex((r) => r.user === read.user)
+              )
+            }
             : msg
         )
       );
@@ -145,13 +146,13 @@ const ChatLayout = ({ auth }) => {
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId
-            ? { 
-                ...msg, 
-                deliveredTo: [...(msg.deliveredTo || []), ...deliveredTo].filter(
-                  (delivered, index, self) => 
-                    index === self.findIndex((d) => d.user === delivered.user)
-                )
-              }
+            ? {
+              ...msg,
+              deliveredTo: [...(msg.deliveredTo || []), ...deliveredTo].filter(
+                (delivered, index, self) =>
+                  index === self.findIndex((d) => d.user === delivered.user)
+              )
+            }
             : msg
         )
       );
@@ -176,7 +177,7 @@ const ChatLayout = ({ auth }) => {
             : msg
         )
       );
-      
+
       // If we're in the thread view, this would be handled by the thread component
       // For now, just update the parent message
     });
@@ -217,12 +218,14 @@ const ChatLayout = ({ auth }) => {
     const loadMessages = async () => {
       if (!selectedRoom?._id) return;
       try {
-        const data = await fetchRoomMessages(selectedRoom._id);
-        setMessages(data);
+        const response = await fetchRoomMessages(selectedRoom._id);
+        // The backend returns { messages: [], pagination: {} }
+        setMessages(response.messages || []);
         const socket = getSocket();
         socket?.emit('joinRoom', selectedRoom._id);
       } catch (error) {
         console.error('Messages fetch failed', error.message);
+        setMessages([]); // Ensure messages is an array even on error
       }
     };
 
@@ -267,13 +270,13 @@ const ChatLayout = ({ auth }) => {
   const markMessagesAsRead = () => {
     const socket = getSocket();
     if (!socket || !selectedRoom || !auth.user) return;
-    
+
     // Mark unread messages (not sent by current user) as read
     const unreadMessages = messages.filter(
-      msg => msg.sender?._id !== auth.user._id && 
-      !msg.readBy?.some(read => read.user === auth.user._id)
+      msg => msg.sender?._id !== auth.user._id &&
+        !msg.readBy?.some(read => read.user === auth.user._id)
     );
-    
+
     unreadMessages.forEach(msg => {
       socket.emit('markAsRead', { messageId: msg._id });
     });
@@ -333,28 +336,108 @@ const ChatLayout = ({ auth }) => {
   );
 
   return (
-    <div className="chat-app">
-      <Sidebar
-        rooms={sortedRooms}
-        selectedRoom={selectedRoom}
-        onSelectRoom={setSelectedRoom}
-        onCreateRoom={handleCreateRoom}
-        user={auth.user}
-        isLoading={isLoading}
-      />
-      <ChatWindow
-        room={selectedRoom}
-        messages={messages}
-        currentUser={auth.user}
-        onSendMessage={handleSendMessage}
-        onTyping={handleTyping}
-        typingUsers={typingUsers[selectedRoom?._id] || {}}
-        onEditMessage={handleEditMessage}
-        onDeleteMessage={handleDeleteMessage}
-        onFileUpload={handleFileUpload}
-        uploadPreview={uploadPreview}
-        clearUploadPreview={clearUploadPreview}
-      />
+    <div className="app-container">
+      <header className="top-nav">
+        <div className="brand-block">
+          <div className="brand-spark">
+            <span />
+          </div>
+          <div>
+            <p className="eyebrow">Algonive Collaboration Cloud</p>
+            <h1>Engagement Command Center</h1>
+          </div>
+        </div>
+        <div className="top-nav-actions">
+          <div className="presence-card">
+            <span className="status-dot online" />
+            <div>
+              <strong>{auth.user?.name}</strong>
+              <small>Connected</small>
+            </div>
+          </div>
+          <button type="button" className="secondary" onClick={() => setShowUserProfile(true)}>
+            Profile
+          </button>
+          <button type="button" className="secondary" onClick={() => setShowTwoFactor(true)}>
+            2FA
+          </button>
+          <button type="button" className="secondary" onClick={() => setShowScheduledMessages(true)}>
+            Scheduled
+          </button>
+          <button type="button" className="secondary" onClick={() => window.location.href = '/meetings'}>
+            Meetings
+          </button>
+          <button type="button" className="secondary">
+            New Initiative
+          </button>
+          <button type="button" onClick={() => {
+            localStorage.removeItem('algonive_token');
+            localStorage.removeItem('algonive_user');
+            window.location.href = '/login';
+          }}>
+            Sign out
+          </button>
+        </div>
+      </header>
+      <div className="app-content">
+        <div className="chat-app">
+          <Sidebar
+            rooms={sortedRooms}
+            selectedRoom={selectedRoom}
+            onSelectRoom={setSelectedRoom}
+            onCreateRoom={handleCreateRoom}
+            user={auth.user}
+            isLoading={isLoading}
+          />
+          <ChatWindow
+            room={selectedRoom}
+            messages={messages}
+            currentUser={auth.user}
+            onSendMessage={handleSendMessage}
+            onTyping={handleTyping}
+            typingUsers={typingUsers[selectedRoom?._id] || {}}
+            onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
+            onFileUpload={handleFileUpload}
+            uploadPreview={uploadPreview}
+            clearUploadPreview={clearUploadPreview}
+          />
+        </div>
+      </div>
+
+      {showUserProfile && (
+        <UserProfile
+          currentUser={auth.user}
+          onClose={() => setShowUserProfile(false)}
+          onUpdate={(updatedUser) => {
+            // Update auth state
+            const updatedAuth = { ...auth, user: updatedUser };
+            localStorage.setItem('algonive_user', JSON.stringify(updatedUser));
+            // This will trigger a re-render with updated user
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {showScheduledMessages && (
+        <ScheduledMessagesList
+          currentUser={auth.user}
+          onClose={() => setShowScheduledMessages(false)}
+        />
+      )}
+
+      {showTwoFactor && (
+        <TwoFactorSetup
+          user={auth.user}
+          onClose={() => setShowTwoFactor(false)}
+          onToggle={() => {
+            // Refresh user data to update 2FA status
+            const updatedUser = { ...auth.user, twoFactorEnabled: !auth.user.twoFactorEnabled };
+            localStorage.setItem('algonive_user', JSON.stringify(updatedUser));
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -425,96 +508,7 @@ const App = () => {
           path="/"
           element={
             <ProtectedRoute isAuthed={!!auth.token}>
-              <div className="app-container">
-                <header className="top-nav">
-                  <div className="brand-block">
-                    <div className="brand-spark">
-                      <span />
-                    </div>
-                    <div>
-                      <p className="eyebrow">Algonive Collaboration Cloud</p>
-                      <h1>Engagement Command Center</h1>
-                    </div>
-                  </div>
-                  <div className="top-nav-actions">
-                    <div className="presence-card">
-                      <span className="status-dot online" />
-                      <div>
-                        <strong>{auth.user?.name}</strong>
-                        <small>Connected</small>
-                      </div>
-                    </div>
-                    <button type="button" className="secondary" onClick={() => setShowUserProfile(true)}>
-                      Profile
-                    </button>
-                    <button type="button" className="secondary" onClick={() => setShowTwoFactor(true)}>
-                      2FA
-                    </button>
-                    <button type="button" className="secondary" onClick={() => setShowScheduledMessages(true)}>
-                      Scheduled
-                    </button>
-                    <button type="button" className="secondary" onClick={() => window.location.href = '/meetings'}>
-                      Meetings
-                    </button>
-                    <button type="button" className="secondary">
-                      New Initiative
-                    </button>
-                    <button type="button" onClick={handleLogout}>
-                      Sign out
-                    </button>
-                  </div>
-                </header>
-                <div className="app-content">
-                  <Sidebar
-                    rooms={rooms}
-                    selectedRoom={selectedRoom}
-                    onSelectRoom={setSelectedRoom}
-                    onCreateRoom={handleCreateRoom}
-                    user={auth.user}
-                    isLoading={isLoading}
-                  />
-                  <ChatWindow
-                    room={selectedRoom}
-                    messages={messages}
-                    currentUser={auth.user}
-                    rooms={rooms}
-                    onSendMessage={handleSendMessage}
-                    onTyping={handleTyping}
-                    typingUsers={typingUsers}
-                    onEditMessage={handleEditMessage}
-                    onDeleteMessage={handleDeleteMessage}
-                    onFileUpload={handleFileUpload}
-                    uploadPreview={uploadPreview}
-                    clearUploadPreview={() => setUploadPreview(null)}
-                  />
-                </div>
-                
-                {showUserProfile && (
-                  <UserProfile
-                    currentUser={auth.user}
-                    onClose={() => setShowUserProfile(false)}
-                    onUpdate={handleProfileUpdate}
-                  />
-                )}
-                
-                {showScheduledMessages && (
-                  <ScheduledMessagesList
-                    currentUser={auth.user}
-                    onClose={() => setShowScheduledMessages(false)}
-                  />
-                )}
-                
-                {showTwoFactor && (
-                  <TwoFactorSetup
-                    user={auth.user}
-                    onClose={() => setShowTwoFactor(false)}
-                    onToggle={() => {
-                      // Refresh user data to update 2FA status
-                      handleProfileUpdate({ ...auth.user, twoFactorEnabled: !auth.user.twoFactorEnabled });
-                    }}
-                  />
-                )}
-              </div>
+              <ChatLayout auth={auth} />
             </ProtectedRoute>
           }
         />
