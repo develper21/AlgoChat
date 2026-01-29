@@ -45,6 +45,34 @@ class AIService {
     }
   }
 
+  // Initialize AI Service - called during server startup
+  async initialize() {
+    try {
+      // Check OpenAI availability
+      if (this.openai) {
+        console.log('OpenAI client initialized successfully');
+      } else {
+        console.warn('OpenAI not available - missing API key');
+      }
+      
+      // Check Google Translate availability
+      if (this.translateClient) {
+        console.log('Google Translate client initialized successfully');
+      } else {
+        console.warn('Google Translate not available - missing credentials');
+      }
+      
+      // Load ML models
+      await this.loadModels();
+      console.log('AI models loaded successfully');
+      
+      return true;
+    } catch (error) {
+      console.error('AI Service initialization failed:', error);
+      return false;
+    }
+  }
+
   // Smart Message Suggestions
   async getMessageSuggestions(context, userHistory = [], roomContext = {}) {
     try {
