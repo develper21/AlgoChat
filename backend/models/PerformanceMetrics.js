@@ -96,6 +96,7 @@ const performanceMetricsSchema = new mongoose.Schema({
   }]
 }, {
   timestamps: true,
+  suppressReservedKeysWarning: true,
   // Indexes for performance
   index: [
     { timestamp: -1 },
