@@ -4,10 +4,11 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import morgan from 'morgan';
 import { Server } from 'socket.io';
+import chalk from 'chalk';
 import './config/env.js';
 import corsOptions from './config/cors.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
-
+import Logger from './utils/coloredLogger.js';
 import authRoutes from './routes/auth.js';
 import roomRoutes from './routes/rooms.js';
 import messageRoutes from './routes/messages.js';
@@ -27,7 +28,6 @@ import authMiddleware from './middleware/auth.js';
 import { auditMiddleware } from './middleware/audit.js';
 import performanceMonitor from './middleware/performanceMonitor.js';
 import cacheService from './services/cacheService.js';
-import Logger from './services/logger.js';
 import { specs, swaggerUi } from './config/swagger.js';
 import Message from './models/Message.js';
 import Room from './models/Room.js';
@@ -54,6 +54,28 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
+
+// Custom request logger with colors
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const status = res.statusCode;
+    const method = req.method;
+    const url = req.originalUrl;
+    
+    // Skip logging for health checks and static assets
+    if (url.includes('/health') || url.includes('/metrics') || url.includes('favicon.ico')) {
+      return;
+    }
+    
+    Logger.route(method, url, status, duration);
+  });
+  
+  next();
+});
+
 app.use(morgan('dev'));
 app.use(generalLimiter);
 app.use(performanceMonitor.requestMonitor());
@@ -115,37 +137,88 @@ app.use(errorHandler);
 
 const startServer = async () => {
   try {
+    Logger.info('🚀 Starting AlgoChat Backend Server...');
+    
+    // Initialize Express middleware
+    Logger.middleware('Express JSON Parser');
+    Logger.middleware('CORS');
+    Logger.middleware('Rate Limiter');
+    Logger.middleware('Performance Monitor');
+    Logger.middleware('Audit Middleware');
+    
     // Initialize cache (optional)
     try {
       await cacheService.connect();
-      Logger.info('Cache service initialized');
+      Logger.connection('Redis Cache', true, { service: 'ioredis' });
     } catch (error) {
-      console.warn('Cache service not available:', error.message);
-      Logger.warn('Cache service not available, continuing without cache');
+      Logger.connection('Redis Cache', false, error.message);
+      Logger.warning('Continuing without cache service');
     }
     
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGO_URI);
-    Logger.info('MongoDB connected');
+    try {
+      await mongoose.connect(process.env.MONGO_URI);
+      Logger.connection('MongoDB', true, { 
+        host: mongoose.connection.host,
+        database: mongoose.connection.name 
+      });
+    } catch (error) {
+      Logger.connection('MongoDB', false, error.message);
+      throw error;
+    }
 
     // Initialize system roles
-    await User.createSystemRoles();
-    Logger.info('System roles initialized');
+    try {
+      await User.createSystemRoles();
+      Logger.success('System Roles initialized');
+    } catch (error) {
+      Logger.error('System Roles initialization failed', error);
+    }
+
+    // Initialize AI Services
+    try {
+      await aiService.initialize();
+      Logger.connection('AI Service', true, { provider: 'OpenAI' });
+    } catch (error) {
+      Logger.connection('AI Service', false, error.message);
+    }
 
     // Reschedule any pending scheduled messages
-    await messageScheduler.reschedulePendingMessages();
+    try {
+      await messageScheduler.reschedulePendingMessages();
+      Logger.success('Message scheduler initialized');
+    } catch (error) {
+      Logger.error('Message scheduler failed', error);
+    }
     
     // Start performance monitoring
-    performanceMonitor.startMonitoring();
-    performanceMonitor.socketMonitor(io);
-    Logger.info('Performance monitoring started');
+    try {
+      performanceMonitor.startMonitoring();
+      performanceMonitor.socketMonitor(io);
+      Logger.success('Performance monitoring started');
+    } catch (error) {
+      Logger.error('Performance monitoring failed', error);
+    }
 
+    // Start server
     server.listen(PORT, () => {
-      Logger.systemEvent('server_started', { port: PORT, env: process.env.NODE_ENV });
-      console.log(`Server running on port ${PORT}`);
+      Logger.server(PORT);
+      Logger.success(`Environment: ${process.env.NODE_ENV}`);
+      Logger.info('All services initialized successfully!');
+      
+      // Log all registered routes
+      console.log('\n' + chalk.cyan('📋 Registered Routes:'));
+      app._router.stack.forEach((middleware) => {
+        if (middleware.route) {
+          const methods = Object.keys(middleware.route.methods).join(', ');
+          const path = middleware.route.path;
+          Logger.route(methods.toUpperCase(), path, 200);
+        }
+      });
     });
+
   } catch (error) {
-    Logger.error('Failed to start server', error);
+    Logger.error('❌ Failed to start server', error);
     process.exit(1);
   }
 };
@@ -172,18 +245,31 @@ const emitRoomUpdate = (roomId, event, payload) => {
 setEmitRoomUpdate(emitRoomUpdate);
 
 // Track connection analytics
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
+  // Log successful socket connection
+  Logger.socket('User Connected', true, { 
+    userId: socket.user._id.toString(), 
+    email: socket.user.email,
+    socketId: socket.id,
+    totalConnections: io.engine.clientsCount 
+  });
+  
   const userId = socket.user._id.toString();
   const sessionId = socket.id;
   
   // Track user login/connection
-  analyticsService.trackUserLogin(
-    userId,
-    sessionId,
-    socket.handshake.device,
-    socket.handshake.address,
-    socket.handshake.headers['user-agent']
-  );
+  try {
+    await analyticsService.trackUserLogin(
+      userId,
+      sessionId,
+      socket.handshake.device,
+      socket.handshake.address,
+      socket.handshake.headers['user-agent']
+    );
+    Logger.success('Analytics tracked user login');
+  } catch (error) {
+    Logger.error('Analytics tracking failed', error);
+  }
   
   // Update real-time connection count
   analyticsService.updateConnectionCount(io.engine.clientsCount);
@@ -214,21 +300,49 @@ io.on('connection', (socket) => {
   updateUserOnlineStatus(true);
 
   socket.on('joinRoom', async (roomId) => {
-    const room = await Room.findById(roomId).populate('members', 'name email avatar isOnline lastSeen');
-    if (!room) return;
-    const isMember = room.members.some((member) => member._id.toString() === userId);
-    if (!isMember) return;
-    socket.join(roomId);
-    
-    // Track room join event
-    analyticsService.trackRoomJoined(userId, roomId);
-    
-    // Send current room members' online status
-    socket.emit('roomMembersStatus', room.members);
+    try {
+      const room = await Room.findById(roomId).populate('members', 'name email avatar isOnline lastSeen');
+      if (!room) {
+        Logger.socket('Join Room', false, { error: 'Room not found', roomId });
+        return;
+      }
+      const isMember = room.members.some((member) => member._id.toString() === userId);
+      if (!isMember) {
+        Logger.socket('Join Room', false, { error: 'Not a member', roomId, userId });
+        return;
+      }
+      socket.join(roomId);
+      Logger.socket('Join Room', true, { roomId, roomName: room.name, userId });
+      
+      // Track room join event
+      await analyticsService.trackRoomJoined(userId, roomId);
+      
+      // Send current room members' online status
+      socket.emit('roomMembersStatus', room.members);
+    } catch (error) {
+      Logger.error('Join room error', error);
+    }
   });
 
   socket.on('typing', ({ roomId, isTyping }) => {
     socket.to(roomId).emit('userTyping', { roomId, userId, isTyping });
+    Logger.socket('Typing', true, { userId, roomId, isTyping });
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', (reason) => {
+    Logger.socket('User Disconnected', true, { 
+      userId, 
+      socketId: socket.id, 
+      reason,
+      totalConnections: io.engine.clientsCount - 1 
+    });
+    
+    // Set user offline when disconnected
+    updateUserOnlineStatus(false);
+    
+    // Update connection count
+    analyticsService.updateConnectionCount(io.engine.clientsCount);
   });
 
   socket.on('sendMessage', async ({ roomId, text, fileUrl, fileType }) => {
