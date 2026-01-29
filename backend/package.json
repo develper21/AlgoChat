@@ -14,8 +14,8 @@
   "author": "AlgoChat Team",
   "license": "MIT",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "TF_ENABLE_ONEDNN_OPTS=0 TF_CPP_MIN_LOG_LEVEL=3 node index.js",
+    "dev": "TF_ENABLE_ONEDNN_OPTS=0 TF_CPP_MIN_LOG_LEVEL=3 nodemon index.js",
     "test": "jest --detectOpenHandles --forceExit",
     "test:watch": "jest --watch --detectOpenHandles",
     "test:coverage": "jest --coverage --detectOpenHandles --forceExit",
@@ -31,6 +31,7 @@
     "@tensorflow/tfjs-node": "^4.22.0",
     "bad-words": "^3.0.4",
     "bcrypt": "^5.1.1",
+    "chalk": "^5.6.2",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
