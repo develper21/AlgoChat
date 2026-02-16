@@ -1,164 +1,53 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
   mongodb:
     image: mongo:7.0
     container_name: algochat-mongodb
     restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-admin123}
-      MONGO_INITDB_DATABASE: algochat
-    volumes:
-      - mongodb_data:/data/db
-      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     ports:
       - "27017:27017"
-    networks:
-      - algochat-network
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Redis Cache
-  redis:
-    image: redis:7.2-alpine
-    container_name: algochat-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    networks:
-      - algochat-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Backend API
-  backend:
-    build:
-      context: ./AlgoChat/backend
-      dockerfile: Dockerfile
-    container_name: algochat-backend
-    restart: unless-stopped
     environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    volumes:
+      - mongodb_data:/data/db
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: algochat-server
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/algochat?authSource=admin
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
       NODE_ENV: production
-      PORT: 5000
-      MONGO_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-admin123}@mongodb:27017/algochat?authSource=admin
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      LOG_LEVEL: info
-    volumes:
-      - ./AlgoChat/backend/logs:/app/logs
-      - ./AlgoChat/backend/uploads:/app/uploads
-    ports:
-      - "5000:5000"
+      PORT: 5001
     depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - algochat-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - mongodb
+    volumes:
+      - ./server:/app
+      - /app/node_modules
 
-  # Frontend
-  frontend:
+  client:
     build:
-      context: ./AlgoChat/frontend
+      context: ./client
       dockerfile: Dockerfile
-    container_name: algochat-frontend
+    container_name: algochat-client
     restart: unless-stopped
+    ports:
+      - "3000:80"
     environment:
-      REACT_APP_API_URL: http://localhost:5000
-      REACT_APP_SOCKET_URL: http://localhost:5000
-    ports:
-      - "3000:3000"
+      VITE_API_URL: http://localhost:5001
+      VITE_SOCKET_URL: http://localhost:5001
     depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - algochat-network
-
-  # Nginx Load Balancer (Optional for production)
-  nginx:
-    image: nginx:alpine
-    container_name: algochat-nginx
-    restart: unless-stopped
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - algochat-network
-
-  # Prometheus Monitoring (Optional)
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: algochat-prometheus
-    restart: unless-stopped
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - algochat-network
-    profiles:
-      - monitoring
-
-  # Grafana Dashboard (Optional)
-  grafana:
-    image: grafana/grafana:latest
-    container_name: algochat-grafana
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    ports:
-      - "3001:3000"
-    depends_on:
-      - prometheus
-    networks:
-      - algochat-network
-    profiles:
-      - monitoring
+      - server
 
 volumes:
   mongodb_data:
-    driver: local
-  redis_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-
-networks:
-  algochat-network:
-    driver: bridge
