@@ -18,6 +18,22 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    audio: {
+      type: String,
+    },
+    audioDuration: {
+      type: Number, // Duration in seconds
+    },
+    status: {
+      type: String,
+      enum: 
+      [
+        "sent",
+        "delivered",
+        "read"
+      ],
+      default: "sent",
+    },
   },
   { timestamps: true }
 );
