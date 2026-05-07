@@ -39,7 +39,7 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
       set({ messages: [...messages, res.data] });
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to send message");
     }
   },
 
@@ -56,7 +56,33 @@ export const useChatStore = create((set, get) => ({
       set({
         messages: [...get().messages, newMessage],
       });
+
+      // Emit delivered confirmation for received messages
+      socket.emit("messageDelivered", {
+        messageId: newMessage._id,
+        senderId: newMessage.senderId,
+      });
     });
+  },
+
+  updateMessageStatus: (messageId, status) => {
+    const { messages } = get();
+    const updatedMessages = messages.map((msg) =>
+      msg._id === messageId ? { ...msg, status } : msg
+    );
+    set({ messages: updatedMessages });
+  },
+
+  markMessagesAsRead: (senderId) => {
+    const socket = useAuthStore.getState().socket;
+    const authUser = useAuthStore.getState().authUser;
+
+    if (socket && authUser) {
+      socket.emit("markAllMessagesAsRead", {
+        senderId: senderId,
+        receiverId: authUser._id,
+      });
+    }
   },
 
   unsubscribeFromMessages: () => {
