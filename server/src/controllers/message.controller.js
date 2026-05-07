@@ -35,9 +35,38 @@ export const getMessages = async (req, res) => {
   }
 };
 
+export const getMediaMessages = async (req, res) => {
+  try {
+    const myId = req.user._id;
+
+    // Find all messages that have either image or audio, where the user is sender or receiver
+    const mediaMessages = await Message.find({
+      $and: [
+        {
+          $or: [
+            { senderId: myId },
+            { receiverId: myId },
+          ],
+        },
+        {
+          $or: [
+            { image: { $exists: true, $ne: null } },
+            { audio: { $exists: true, $ne: null } },
+          ],
+        },
+      ],
+    }).sort({ createdAt: -1 }); // Newest first
+
+    res.status(200).json(mediaMessages);
+  } catch (error) {
+    console.log("Error in getMediaMessages controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text, image, audio, audioDuration } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
@@ -48,18 +77,38 @@ export const sendMessage = async (req, res) => {
       imageUrl = uploadResponse.secure_url;
     }
 
+    let audioUrl;
+    if (audio) {
+      // Upload base64 audio to cloudinary
+      const uploadResponse = await cloudinary.uploader.upload(audio, {
+        resource_type: "video", // Cloudinary stores audio as video
+        folder: "voice_messages",
+      });
+      audioUrl = uploadResponse.secure_url;
+    }
+
     const newMessage = new Message({
       senderId,
       receiverId,
       text,
       image: imageUrl,
+      audio: audioUrl,
+      audioDuration,
     });
 
     await newMessage.save();
 
     const receiverSocketId = getReceiverSocketId(receiverId);
+    console.log("Sending message to:", receiverId, "Socket ID:", receiverSocketId);
+
     if (receiverSocketId) {
+      // If receiver is online, mark as delivered and emit
+      newMessage.status = "delivered";
+      await newMessage.save();
       io.to(receiverSocketId).emit("newMessage", newMessage);
+      console.log("Message emitted successfully to receiver");
+    } else {
+      console.log("Receiver not online, message saved but not emitted");
     }
 
     res.status(201).json(newMessage);
