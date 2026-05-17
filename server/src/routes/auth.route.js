@@ -1,15 +1,24 @@
 import express from "express";
-import { checkAuth, login, logout, signup, updateProfile } from "../controllers/auth.controller.js";
+import {
+  sendOTP,
+  verifyOTP,
+  updateFullName,
+  updateProfile,
+  checkAuth,
+  logout,
+} from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/signup", signup);
-router.post("/login", login);
-router.post("/logout", logout);
+// Public — mobile OTP login / signup
+router.post("/send-otp", sendOTP);
+router.post("/verify-otp", verifyOTP);
 
-router.put("/update-profile", protectRoute, updateProfile);
-
+// Protected — session & profile
 router.get("/check", protectRoute, checkAuth);
+router.post("/logout", logout);
+router.put("/fullname", protectRoute, updateFullName);
+router.put("/update-profile", protectRoute, updateProfile);
 
 export default router;

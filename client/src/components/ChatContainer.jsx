@@ -6,6 +6,7 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { Check, CheckCheck, ChevronDown, Reply, Forward, Star, Trash2, Copy, Info } from "lucide-react";
+import EnhancedChatBackground from "./ChatBackground";
 
 // Message Status Component
 const MessageStatus = ({ status }) => {
@@ -62,6 +63,7 @@ const ChatContainer = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto relative">
+      <EnhancedChatBackground />
       <ChatHeader />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 relative bg-base-100/80">
