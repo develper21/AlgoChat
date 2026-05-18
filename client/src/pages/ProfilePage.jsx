@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Camera, Phone, User } from "lucide-react";
+import { Camera, Mail, User } from "lucide-react";
 import LeftNavPanel from "../components/LeftPanel";
 
 const ProfilePage = () => {
@@ -79,10 +79,12 @@ const ProfilePage = () => {
 
             <div className="space-y-1.5">
               <div className="text-sm text-zinc-400 flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                Mobile Number
+                <Mail className="w-4 h-4" />
+                Email
               </div>
-              <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.mobileNumber}</p>
+              <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
+                {authUser?.email || "—"}
+              </p>
             </div>
           </div>
 

@@ -7,7 +7,7 @@ AlgoChat is a full-stack, real-time messaging platform built with the MERN stack
 ## ✨ Key Features
 
 - **💬 Real-Time Messaging**: Instant communication powered by Socket.io.
-- **🔐 Secure Authentication**: JWT-based authentication with HTTP-only cookies for enhanced security.
+- **🔐 Secure Authentication**: Clerk authentication with Google and Apple sign-in.
 - **👤 Profile Management**: User profile customization, including avatar uploads via Cloudinary.
 - **🟢 Online/Offline Status**: Track active users in real-time.
 - **🎨 Dynamic Themes**: Modern UI with 30+ built-in themes using DaisyUI and Tailwind CSS.
@@ -35,8 +35,7 @@ AlgoChat is a full-stack, real-time messaging platform built with the MERN stack
 - **MongoDB & Mongoose**: Flexible NoSQL database and ODM.
 - **Socket.io**: Real-time engine for event-driven communication.
 - **Cloudinary**: Cloud-based image and video management.
-- **BcryptJS**: Password hashing for security.
-- **JWT**: Secure token-based authentication.
+- **Clerk**: OAuth authentication (Google, Apple).
 
 ---
 
@@ -56,7 +55,8 @@ Create a `.env` file in the `server` directory:
 
 ```env
 MONGODB_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
+CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
@@ -69,6 +69,7 @@ PORT=5001
 Create a `.env` file in the `client` directory:
 
 ```env
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 VITE_API_URL=http://localhost:5001
 VITE_SOCKET_URL=http://localhost:5001
 ```

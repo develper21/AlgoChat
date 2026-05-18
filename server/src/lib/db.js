@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
 
-const LEGACY_INDEX_NAMES = ["email_1", "username_1"];
+const LEGACY_INDEX_NAMES = [
+  "email_1",
+  "username_1",
+  "mobileNumber_1",
+];
 
 const dropIndexIfExists = async (collection, indexName) => {
   try {
@@ -21,25 +25,16 @@ export const connectDB = async () => {
 
     const collection = User.collection;
 
-    // Drop old auth indexes before cleaning data or syncing new schema
     for (const indexName of LEGACY_INDEX_NAMES) {
       await dropIndexIfExists(collection, indexName);
     }
-    await dropIndexIfExists(collection, "mobileNumber_1");
 
-    // Remove users from the old email/password schema (no valid mobile number)
     const { deletedCount } = await User.deleteMany({
-      $or: [
-        { mobileNumber: null },
-        { mobileNumber: { $exists: false } },
-        { mobileNumber: "" },
-      ],
+      $or: [{ clerkId: null }, { clerkId: { $exists: false } }, { clerkId: "" }],
     });
     if (deletedCount > 0) {
-      console.log(`Removed ${deletedCount} legacy user(s) without a mobile number`);
+      console.log(`Removed ${deletedCount} legacy user(s) without a Clerk ID`);
     }
-
-    await User.updateMany({ email: { $exists: true } }, { $unset: { email: 1 } });
 
     await User.syncIndexes();
     console.log("User indexes synced");

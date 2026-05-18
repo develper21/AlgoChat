@@ -1,31 +1,40 @@
-import jwt from "jsonwebtoken";
+import { getAuth, requireAuth } from "@clerk/express";
 import User from "../models/user.model.js";
+import { clerkClient, getClerkProfile } from "../lib/clerk.js";
 
-export const protectRoute = async (req, res, next) => {
+export const requireClerkAuth = requireAuth();
+
+export const findOrCreateMongoUser = async (clerkId) => {
+  let user = await User.findOne({ clerkId });
+  if (user) return user;
+
+  const clerkUser = await clerkClient.users.getUser(clerkId);
+  const { email, fullName, profilePic } = getClerkProfile(clerkUser);
+
+  user = await User.create({
+    clerkId,
+    email,
+    fullName,
+    profilePic,
+  });
+
+  return user;
+};
+
+export const attachMongoUser = async (req, res, next) => {
   try {
-    const token = req.cookies.jwt;
+    const { userId: clerkId } = getAuth(req);
 
-    if (!token) {
-      return res.status(401).json({ message: "Unauthorized - No Token Provided" });
+    if (!clerkId) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (!decoded) {
-      return res.status(401).json({ message: "Unauthorized - Invalid Token" });
-    }
-
-    const user = await User.findById(decoded.userId).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    req.user = user;
-
+    req.user = await findOrCreateMongoUser(clerkId);
     next();
   } catch (error) {
-    console.log("Error in protectRoute middleware: ", error.message);
+    console.log("Error in attachMongoUser:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const protectRoute = [requireClerkAuth, attachMongoUser];
