@@ -1,16 +1,15 @@
-let getTokenFn = null;
-let signOutFn = null;
-
-export const registerAuthHandlers = ({ getToken, signOut }) => {
-  getTokenFn = getToken;
-  signOutFn = signOut;
+export const getAuthToken = () => {
+  return localStorage.getItem("token");
 };
 
-export const getAuthToken = async () => {
-  if (!getTokenFn) return null;
-  return getTokenFn();
+export const setAuthToken = (token) => {
+  if (token) {
+    localStorage.setItem("token", token);
+  } else {
+    localStorage.removeItem("token");
+  }
 };
 
-export const clerkSignOut = async () => {
-  if (signOutFn) await signOutFn();
+export const removeAuthToken = () => {
+  localStorage.removeItem("token");
 };

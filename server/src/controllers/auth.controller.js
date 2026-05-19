@@ -1,11 +1,17 @@
-import { getAuth } from "@clerk/express";
+import bcryptjs from "bcryptjs";
+import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import cloudinary from "../lib/cloudinary.js";
-import { clerkClient, getClerkProfile } from "../lib/clerk.js";
 
-export const formatUserResponse = (user, extra = {}) => ({
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
+const JWT_EXPIRES_IN = "7d";
+
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+};
+
+const formatUserResponse = (user, extra = {}) => ({
   _id: user._id,
-  clerkId: user.clerkId,
   email: user.email,
   fullName: user.fullName,
   profilePic: user.profilePic,
@@ -14,26 +20,89 @@ export const formatUserResponse = (user, extra = {}) => ({
   ...extra,
 });
 
-export const syncUser = async (req, res) => {
+export const signup = async (req, res) => {
   try {
-    const { userId: clerkId } = getAuth(req);
-    const clerkUser = await clerkClient.users.getUser(clerkId);
-    const { email, fullName, profilePic } = getClerkProfile(clerkUser);
+    const { email, password, fullName } = req.body;
 
-    let user = await User.findOne({ clerkId });
-
-    if (!user) {
-      user = await User.create({ clerkId, email, fullName, profilePic });
-    } else {
-      user.email = email;
-      if (!user.fullName?.trim() && fullName) user.fullName = fullName;
-      if (!user.profilePic && profilePic) user.profilePic = profilePic;
-      await user.save();
+    // Validation
+    if (!email || !password || !fullName) {
+      return res.status(400).json({ message: "Email, password, and full name are required" });
     }
 
-    res.status(200).json(formatUserResponse(user));
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    // Hash password
+    const hashedPassword = await bcryptjs.hash(password, 10);
+
+    // Create user
+    user = await User.create({
+      email,
+      password: hashedPassword,
+      fullName,
+    });
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      user: formatUserResponse(user),
+    });
   } catch (error) {
-    console.log("Error in syncUser:", error.message);
+    console.log("Error in signup:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Check password
+    const isPasswordValid = await bcryptjs.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Generate token
+    const token = generateToken(user._id);
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: formatUserResponse(user),
+    });
+  } catch (error) {
+    console.log("Error in login:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const checkAuth = (req, res) => {
+  try {
+    res.status(200).json(formatUserResponse(req.user));
+  } catch (error) {
+    console.log("Error in checkAuth:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -85,11 +154,11 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-export const checkAuth = (req, res) => {
+export const logout = (req, res) => {
   try {
-    res.status(200).json(formatUserResponse(req.user));
+    res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
-    console.log("Error in checkAuth:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.log("Error in logout:", error.message);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -1,6 +1,8 @@
 import express from "express";
 import {
-  syncUser,
+  signup,
+  login,
+  logout,
   updateFullName,
   updateProfile,
   checkAuth,
@@ -9,7 +11,9 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/sync", protectRoute, syncUser);
+router.post("/signup", signup);
+router.post("/login", login);
+router.post("/logout", protectRoute, logout);
 router.get("/check", protectRoute, checkAuth);
 router.put("/fullname", protectRoute, updateFullName);
 router.put("/update-profile", protectRoute, updateProfile);

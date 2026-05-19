@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.61.6",
     "axios": "^1.7.7",
     "emoji-picker-react": "^4.19.1",
     "lucide-react": "^0.459.0",

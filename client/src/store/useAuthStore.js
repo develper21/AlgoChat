@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-import { clerkSignOut } from "../lib/token.js";
+import { setAuthToken, removeAuthToken, getAuthToken } from "../lib/token.js";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -10,38 +10,65 @@ export const useAuthStore = create((set, get) => ({
   authUser: null,
   isUpdatingProfile: false,
   isCheckingAuth: true,
-  isSyncing: false,
+  isLoading: false,
   onlineUsers: [],
   socket: null,
 
-  syncUser: async () => {
-    set({ isSyncing: true });
+  signup: async (email, password, fullName) => {
+    set({ isLoading: true });
     try {
-      const res = await axiosInstance.post("/auth/sync");
-      set({ authUser: res.data });
+      const res = await axiosInstance.post("/auth/signup", {
+        email,
+        password,
+        fullName,
+      });
+      setAuthToken(res.data.token);
+      set({ authUser: res.data.user });
       get().connectSocket();
+      toast.success("Account created successfully");
     } catch (error) {
-      if (error.response?.status !== 401) {
-        console.log("Error in syncUser:", error.message);
-        toast.error(error.response?.data?.message || "Failed to sync account");
-      }
-      set({ authUser: null });
+      toast.error(error.response?.data?.message || "Signup failed");
+      throw error;
     } finally {
-      set({ isSyncing: false });
+      set({ isLoading: false });
+    }
+  },
+
+  login: async (email, password) => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.post("/auth/login", {
+        email,
+        password,
+      });
+      setAuthToken(res.data.token);
+      set({ authUser: res.data.user });
+      get().connectSocket();
+      toast.success("Logged in successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Login failed");
+      throw error;
+    } finally {
+      set({ isLoading: false });
     }
   },
 
   checkAuth: async () => {
     set({ isCheckingAuth: true });
     try {
+      const token = getAuthToken();
+      if (!token) {
+        set({ authUser: null, isCheckingAuth: false });
+        return;
+      }
+
       const res = await axiosInstance.get("/auth/check");
       set({ authUser: res.data });
       get().connectSocket();
     } catch (error) {
-      if (error.response?.status !== 401) {
-        console.log("Error in checkAuth:", error.message);
-      }
+      console.log("Error in checkAuth:", error.message);
       set({ authUser: null });
+      removeAuthToken();
     } finally {
       set({ isCheckingAuth: false });
     }
@@ -49,14 +76,16 @@ export const useAuthStore = create((set, get) => ({
 
   clearAuth: () => {
     get().disconnectSocket();
-    set({ authUser: null, isCheckingAuth: false, isSyncing: false });
+    set({ authUser: null, isCheckingAuth: false });
+    removeAuthToken();
   },
 
   logout: async () => {
     try {
+      await axiosInstance.post("/auth/logout");
       get().disconnectSocket();
       set({ authUser: null });
-      await clerkSignOut();
+      removeAuthToken();
       toast.success("Logged out successfully");
     } catch (error) {
       toast.error("Failed to log out");

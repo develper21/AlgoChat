@@ -8,7 +8,6 @@ import AuthSync from "./components/AuthSync";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
-import { useAuth } from "@clerk/clerk-react";
 import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
@@ -16,15 +15,11 @@ const needsProfileSetup = (user) =>
   user && (!user.fullName || !String(user.fullName).trim());
 
 const App = () => {
-  const { authUser, isCheckingAuth, isSyncing } = useAuthStore();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { authUser, isCheckingAuth } = useAuthStore();
   const { theme } = useThemeStore();
   const profileIncomplete = needsProfileSetup(authUser);
 
-  const isBootstrapping =
-    !isLoaded || (isSignedIn && (isCheckingAuth || isSyncing) && !authUser);
-
-  if (isBootstrapping) {
+  if (isCheckingAuth) {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader className="size-10 animate-spin" />
@@ -39,9 +34,9 @@ const App = () => {
         <Route
           path="/"
           element={
-            isSignedIn && authUser && !profileIncomplete ? (
+            authUser && !profileIncomplete ? (
               <HomePage />
-            ) : isSignedIn && profileIncomplete ? (
+            ) : authUser && profileIncomplete ? (
               <Navigate to="/onboarding" />
             ) : (
               <Navigate to="/auth" />
@@ -49,17 +44,17 @@ const App = () => {
           }
         />
         <Route
-          path="/auth/sign-up/*"
-          element={!isSignedIn ? <SignUpPage /> : <Navigate to="/" />}
+          path="/auth/sign-up"
+          element={!authUser ? <SignUpPage /> : <Navigate to="/" />}
         />
         <Route
-          path="/auth/*"
-          element={!isSignedIn ? <AuthPage /> : <Navigate to="/" />}
+          path="/auth"
+          element={!authUser ? <AuthPage /> : <Navigate to="/" />}
         />
         <Route
           path="/onboarding"
           element={
-            isSignedIn && profileIncomplete ? (
+            authUser && profileIncomplete ? (
               <OnboardingRedirect />
             ) : (
               <Navigate to="/" />
@@ -69,7 +64,7 @@ const App = () => {
         <Route
           path="/settings"
           element={
-            isSignedIn && authUser && !profileIncomplete ? (
+            authUser && !profileIncomplete ? (
               <SettingsPage />
             ) : (
               <Navigate to="/auth" />
@@ -79,7 +74,7 @@ const App = () => {
         <Route
           path="/profile"
           element={
-            isSignedIn && authUser && !profileIncomplete ? (
+            authUser && !profileIncomplete ? (
               <ProfilePage />
             ) : (
               <Navigate to="/auth" />
@@ -89,7 +84,7 @@ const App = () => {
         <Route
           path="/media"
           element={
-            isSignedIn && authUser && !profileIncomplete ? (
+            authUser && !profileIncomplete ? (
               <MediaPage />
             ) : (
               <Navigate to="/auth" />

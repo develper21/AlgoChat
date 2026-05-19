@@ -6,10 +6,12 @@ export const axiosInstance = axios.create({
   withCredentials: true,
 });
 
-axiosInstance.interceptors.request.use(async (config) => {
-  const token = await getAuthToken();
+axiosInstance.interceptors.request.use((config) => {
+  const token = getAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+export default axiosInstance;
