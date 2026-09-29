@@ -1,0 +1,943 @@
+{
+  "info": {
+    "_postman_id": "c9a4d7e2-8b3f-4e1a-86d0-2f5c7b9e1d4a",
+    "name": "AlgoChat API — Client",
+    "description": "📡 **AlgoChat — Frontend API Collection (Client Side)**\n\nThis collection mirrors the **server collection** but documents every route from the *frontend's point of view*: which React store action / component calls it, what it sends, and what it does with the response.\n\n## 🔗 Frontend ↔ Backend Mapping\n| Frontend caller | Store action / file | HTTP request |\n| --- | --- | --- |\n| SignupPage | `useAuthStore.signup` | `POST /auth/signup` |\n| AuthPage | `useAuthStore.login` | `POST /auth/login` |\n| AuthSync (on mount) | `useAuthStore.checkAuth` | `GET /auth/check` |\n| Sidebar / Navbar | `useAuthStore.logout` | `POST /auth/logout` |\n| ProfilePage (onboarding) | `useAuthStore.updateFullName` | `PUT /auth/fullname` |\n| ProfilePage (avatar) | `useAuthStore.updateProfile` | `PUT /auth/update-profile` |\n| Sidebar | `useChatStore.getUsers` | `GET /messages/users` |\n| ChatContainer | `useChatStore.getMessages` | `GET /messages/:id` |\n| MessageInput | `useChatStore.sendMessage` | `POST /messages/send/:id` |\n| MediaPage | direct axios call | `GET /messages/media` |\n| useAuthStore.connectSocket | Socket.io client | WS connection `?userId=<id>` |\n\n## ⚙️ How the client talks to the API\n- Base URL comes from `client/src/lib/axios.js`: `http://localhost:5001/api` in development, `/api` in production.\n- Every request passes through an axios interceptor that attaches `Authorization: Bearer <token>` from `localStorage.token` (see `client/src/lib/token.js`), plus `withCredentials: true`.\n\n## 🚀 Quick Start\n1. Start the server (`cd server && npm run dev`) and the client (`cd client && npm run dev`).\n2. Run **Auth → Signup** or **Login** here — the JWT is auto-saved to `{{token}}`, exactly like the app does with `localStorage`.\n3. Copy a partner `_id` from **Messages → Get users for sidebar** into the `{{userId}}` variable.\n4. Send messages and fetch the conversation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "algochat-client"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Mirrors client/src/lib/axios.js interceptor:",
+          "// const token = getAuthToken(); if (token) config.headers.Authorization = `Bearer ${token}`;"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "myUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "REPLACE_WITH_CHAT_PARTNER_USER_ID",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "description": "Called by `useAuthStore` (client/src/store/useAuthStore.js).\n\n| Store action | HTTP request | On success the client… |\n| --- | --- | --- |\n| `signup` | `POST /auth/signup` | saves token → localStorage, sets `authUser`, connects socket |\n| `login` | `POST /auth/login` | saves token → localStorage, sets `authUser`, connects socket |\n| `checkAuth` | `GET /auth/check` | sets `authUser`, connects socket; on failure clears token |\n| `logout` | `POST /auth/logout` | disconnects socket, clears `authUser` + token |\n| `updateFullName` | `PUT /auth/fullname` | updates `authUser` |\n| `updateProfile` | `PUT /auth/update-profile` | updates `authUser` |",
+      "item": [
+        {
+          "name": "Signup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "",
+                  "// Same as client: setAuthToken(res.data.token) + set authUser",
+                  "if (res.token) {",
+                  "    pm.collectionVariables.set(\"token\", res.token);",
+                  "    console.log(\"✅ token saved (client stores it in localStorage.token)\");",
+                  "}",
+                  "if (res.user && res.user._id) {",
+                  "    pm.collectionVariables.set(\"myUserId\", res.user._id);",
+                  "    console.log(\"✅ myUserId saved — client would now call connectSocket()\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "signup"
+              ]
+            },
+            "description": "**Client caller:** `SignupPage` → `useAuthStore.signup(email, password, fullName)`\n\nSends `{ email, password, fullName }`. On success the client stores the JWT in `localStorage` (`setAuthToken`), sets `authUser`, shows the toast *Account created successfully*, and connects Socket.io with `query: { userId: authUser._id }`.\n\n**Validation (server):** all three fields required, password ≥ 6 chars, unique email."
+          },
+          "response": [
+            {
+              "name": "201 — User created successfully",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/signup",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "signup"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"User created successfully\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NjEyZjk4N2FiYzRlZTAwMTIzNDU2NzgiLCJpYXQiOjE3MTcyNTAwMDAsImV4cCI6MTcxNzg1NDgwMH0.abc123\",\n  \"user\": {\n    \"_id\": \"6612f987abc4ee0012345678\",\n    \"email\": \"testuser@example.com\",\n    \"fullName\": \"Test User\",\n    \"profilePic\": \"\",\n    \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "400 — Validation error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/signup",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "signup"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Password must be at least 6 characters\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "",
+                  "if (res.token) {",
+                  "    pm.collectionVariables.set(\"token\", res.token);",
+                  "    console.log(\"✅ token saved (client stores it in localStorage.token)\");",
+                  "}",
+                  "if (res.user && res.user._id) {",
+                  "    pm.collectionVariables.set(\"myUserId\", res.user._id);",
+                  "    console.log(\"✅ myUserId saved — client would now call connectSocket()\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**Client caller:** `AuthPage` → `useAuthStore.login(email, password)`\n\nSends `{ email, password }`. On success the client stores the JWT, sets `authUser`, shows *Logged in successfully*, and connects Socket.io."
+          },
+          "response": [
+            {
+              "name": "200 — Login successful",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Login successful\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NjEyZjk4N2FiYzRlZTAwMTIzNDU2NzgiLCJpYXQiOjE3MTcyNTAwMDAsImV4cCI6MTcxNzg1NDgwMH0.abc123\",\n  \"user\": {\n    \"_id\": \"6612f987abc4ee0012345678\",\n    \"email\": \"testuser@example.com\",\n    \"fullName\": \"Test User\",\n    \"profilePic\": \"\",\n    \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "401 — Invalid credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"wrongpassword\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Invalid email or password\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check Auth (current user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "check"
+              ]
+            },
+            "description": "**Client caller:** `AuthSync` (mounted in `App.jsx`) → `useAuthStore.checkAuth()` on app load.\n\nThe client first checks `localStorage.token`; if absent it skips the call and clears the session. Otherwise it GETs `/auth/check` and hydrates `authUser` so protected routes (`/`, `/profile`, `/settings`, `/media`) render instead of redirecting to `/auth`."
+          },
+          "response": [
+            {
+              "name": "200 — Authenticated user",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "check"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee0012345678\",\n  \"email\": \"testuser@example.com\",\n  \"fullName\": \"Test User\",\n  \"profilePic\": \"\",\n  \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:00:00.000Z\"\n}"
+            },
+            {
+              "name": "401 — Token expired",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer expired.token.here"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "check"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Token expired\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Full Name",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Updated Name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/fullname",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "fullname"
+              ]
+            },
+            "description": "**Client caller:** `ProfilePage` → `useAuthStore.updateFullName(fullName)`\n\nUsed by the onboarding flow: `App.jsx` redirects users with an empty `fullName` to `/onboarding` → `/profile` until a name is set. Body: `{ fullName }`."
+          },
+          "response": [
+            {
+              "name": "200 — Profile updated successfully",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Updated Name\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/fullname",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "fullname"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee0012345678\",\n  \"email\": \"testuser@example.com\",\n  \"fullName\": \"Updated Name\",\n  \"profilePic\": \"\",\n  \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:05:00.000Z\",\n  \"message\": \"Profile updated successfully\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profilePic\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/update-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "update-profile"
+              ]
+            },
+            "description": "**Client caller:** `ProfilePage` → `useAuthStore.updateProfile(data)`\n\nThe client reads the chosen file with `FileReader`, converts it to a **base64 data URI**, and sends it as `{ profilePic }`. The server uploads to Cloudinary and saves the `secure_url`."
+          },
+          "response": [
+            {
+              "name": "200 — Profile picture updated",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"profilePic\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/update-profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "update-profile"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee0012345678\",\n  \"email\": \"testuser@example.com\",\n  \"fullName\": \"Test User\",\n  \"profilePic\": \"https://res.cloudinary.com/demo/image/upload/v1717250000/profile.png\",\n  \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:06:00.000Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "**Client caller:** `Sidebar` → `useAuthStore.logout()`\n\nOn success the client disconnects the socket, clears `authUser` and removes `localStorage.token`. Protected routes then redirect to `/auth`."
+          },
+          "response": [
+            {
+              "name": "200 — Logged out successfully",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/logout",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Logged out successfully\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 Messages",
+      "description": "Called by `useChatStore` (client/src/store/useChatStore.js) and `MediaPage`.\n\n| Store action | HTTP request | Used by |\n| --- | --- | --- |\n| `getUsers` | `GET /messages/users` | `Sidebar` |\n| `getMessages(userId)` | `GET /messages/:id` | `ChatContainer` when a user is selected |\n| `sendMessage(messageData)` | `POST /messages/send/:id` | `MessageInput` |\n| — (direct call) | `GET /messages/media` | `MediaPage` gallery |",
+      "item": [
+        {
+          "name": "Get users for sidebar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "if (res.length > 0) {",
+                  "    console.log(\"💡 Set the 'userId' collection variable to a partner _id, e.g.\", res[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/messages/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                "users"
+              ]
+            },
+            "description": "**Client caller:** `Sidebar` → `useChatStore.getUsers()` on mount.\n\nPopulates the sidebar list; combined with `onlineUsers` from the `getOnlineUsers` socket event to show online/offline dots."
+          },
+          "response": [
+            {
+              "name": "200 — Users list",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/messages/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "users"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"_id\": \"6612f987abc4ee0012345679\",\n    \"email\": \"alice@example.com\",\n    \"fullName\": \"Alice Sharma\",\n    \"profilePic\": \"https://res.cloudinary.com/demo/image/upload/alice.png\",\n    \"createdAt\": \"2026-09-28T09:00:00.000Z\",\n    \"updatedAt\": \"2026-09-28T09:00:00.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get media messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/messages/media",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                "media"
+              ]
+            },
+            "description": "**Client caller:** `MediaPage` (shared media gallery).\n\nReturns all image/audio messages involving the logged-in user, newest first."
+          },
+          "response": [
+            {
+              "name": "200 — Media messages",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/messages/media",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "media"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"_id\": \"6612f987abc4ee001234567b\",\n    \"senderId\": \"6612f987abc4ee0012345678\",\n    \"receiverId\": \"6612f987abc4ee0012345679\",\n    \"text\": \"\",\n    \"image\": \"https://res.cloudinary.com/demo/image/upload/v1717250000/screenshot.png\",\n    \"audio\": null,\n    \"audioDuration\": null,\n    \"status\": \"delivered\",\n    \"createdAt\": \"2026-09-29T10:10:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:10:01.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get messages (conversation)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/messages/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{userId}}",
+                  "description": "The _id of the selected user"
+                }
+              ]
+            },
+            "description": "**Client caller:** `ChatContainer` → `useChatStore.getMessages(userId)` whenever `selectedUser` changes.\n\nLoads the two-way conversation; the component then subscribes to `newMessage` socket events for live updates and emits `markAllMessagesAsRead`."
+          },
+          "response": [
+            {
+              "name": "200 — Conversation messages",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/messages/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "{{userId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"_id\": \"6612f987abc4ee001234567c\",\n    \"senderId\": \"6612f987abc4ee0012345678\",\n    \"receiverId\": \"6612f987abc4ee0012345679\",\n    \"text\": \"Hey Alice! 👋\",\n    \"image\": null,\n    \"audio\": null,\n    \"audioDuration\": null,\n    \"status\": \"delivered\",\n    \"createdAt\": \"2026-09-29T10:11:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:11:00.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Send message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Hello from Postman! 👋\",\n  \"image\": \"\",\n  \"audio\": \"\",\n  \"audioDuration\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages/send/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                "send",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{userId}}",
+                  "description": "The _id of the receiver (selectedUser._id)"
+                }
+              ]
+            },
+            "description": "**Client caller:** `MessageInput` → `useChatStore.sendMessage(messageData)`\n\n- Text messages: `{ text }`\n- Images: picked file converted to base64 data URI → `{ image }`\n- Voice notes: recorded blob → base64 → `{ audio, audioDuration }`\n\nThe response message is appended to the local `messages` array. If the receiver is online the server also emits `newMessage` to them; the receiver's client then emits `messageDelivered` back."
+          },
+          "response": [
+            {
+              "name": "201 — Message sent",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"text\": \"Hello from Postman! 👋\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/messages/send/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "send",
+                    "{{userId}}"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee001234567e\",\n  \"senderId\": \"6612f987abc4ee0012345678\",\n  \"receiverId\": \"6612f987abc4ee0012345679\",\n  \"text\": \"Hello from Postman! 👋\",\n  \"image\": null,\n  \"audio\": null,\n  \"audioDuration\": null,\n  \"status\": \"delivered\",\n  \"createdAt\": \"2026-09-29T10:13:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:13:00.000Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔌 Socket.io Events (reference)",
+      "description": "The client connects via `useAuthStore.connectSocket()` → `io(BASE_URL, { query: { userId } })` with `BASE_URL = http://localhost:5001` in development. These are **not REST requests** — they document the real-time contract for testing with a Socket.io client (e.g. Postman's WebSocket request).\n\n| Event | Direction | Payload | Handled in |\n| --- | --- | --- | --- |\n| `connection` | Client → Server | query `userId` | `useAuthStore.connectSocket` |\n| `getOnlineUsers` | Server → Client | `string[]` userIds | `useAuthStore` → `onlineUsers` |\n| `newMessage` | Server → Client | `Message` | `useChatStore.subscribeToMessages` |\n| `messageDelivered` | Client → Server | `{ messageId, senderId }` | `useChatStore.subscribeToMessages` |\n| `messageRead` | Client → Server | `{ messageId, senderId }` | ChatContainer (on open) |\n| `markAllMessagesAsRead` | Client → Server | `{ senderId, receiverId }` | `useChatStore.markMessagesAsRead` |\n| `messageStatusUpdate` | Server → Client | `{ messageId, status }` | `useChatStore.updateMessageStatus` |\n| `allMessagesRead` | Server → Client | `{ receiverId }` | Chat header ticks |\n\nTo test: open a **WebSocket request** in Postman to `ws://localhost:5001/socket.io/?EIO=4&transport=websocket` and complete the Socket.io handshake, or use two browser tabs of the running app.",
+      "item": []
+    }
+  ],
+  "tag": []
+}
