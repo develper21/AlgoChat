@@ -1,0 +1,1180 @@
+{
+  "info": {
+    "_postman_id": "b7e3c2a1-4f8d-4c6e-9a2b-1d5f7e9c0a3b",
+    "name": "AlgoChat API — Server",
+    "description": "📡 **AlgoChat — Complete REST API Collection (Server Side)**\n\nThis collection covers **every route** exposed by the AlgoChat Express server (`server/src/index.js`).\n\n## 🔐 Authentication\nAll routes except `Signup` and `Login` are protected by the `protectRoute` middleware (`server/src/middleware/auth.middleware.js`).\n- Auth type: **Bearer Token** (JWT, 7-day expiry)\n- The **Signup** and **Login** requests have a test script that automatically saves the returned JWT into the collection variable `{{token}}`, so you can run requests top-to-bottom without copy-pasting tokens.\n\n## 🚀 Quick Start\n1. Start the server: `cd server && npm run dev` (runs on `PORT=5001` by default).\n2. Run **Auth → Signup** (or **Login**) — the token is saved automatically.\n3. Set the `{{userId}}` collection variable to the `_id` of the user you want to chat with (copy it from **Messages → Get users for sidebar**).\n4. Run **Messages → Send message** and **Get messages**.\n\n## 🔌 Real-Time Events (Socket.io — reference, not testable via REST)\n| Event | Direction | Payload |\n| --- | --- | --- |\n| `getOnlineUsers` | Server → Client | `string[]` (userIds) |\n| `newMessage` | Server → Client | `Message` object |\n| `messageDelivered` | Client → Server | `{ messageId, senderId }` |\n| `messageRead` | Client → Server | `{ messageId, senderId }` |\n| `markAllMessagesAsRead` | Client → Server | `{ senderId, receiverId }` |\n| `messageStatusUpdate` | Server → Client | `{ messageId, status }` |\n| `allMessagesRead` | Server → Client | `{ receiverId }` |",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "algochat-server"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Runs before every request in the collection",
+          "// Token is set automatically by Signup/Login test scripts"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test: log helpful info on every response",
+          "pm.test(\"Response time is under 2000ms\", function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "myUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "REPLACE_WITH_CHAT_PARTNER_USER_ID",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "description": "Authentication & profile routes mounted at `/api/auth` (see `server/src/routes/auth.route.js`).\n\n| Method | Route | Protected |\n| --- | --- | --- |\n| POST | `/api/auth/signup` | ❌ |\n| POST | `/api/auth/login` | ❌ |\n| POST | `/api/auth/logout` | ✅ |\n| GET | `/api/auth/check` | ✅ |\n| PUT | `/api/auth/fullname` | ✅ |\n| PUT | `/api/auth/update-profile` | ✅ |",
+      "item": [
+        {
+          "name": "Signup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "",
+                  "pm.test(\"Response contains token and user\", function () {",
+                  "    pm.expect(res).to.have.property(\"token\");",
+                  "    pm.expect(res).to.have.property(\"user\");",
+                  "});",
+                  "",
+                  "// Auto-save token + user id for the rest of the collection",
+                  "if (res.token) {",
+                  "    pm.collectionVariables.set(\"token\", res.token);",
+                  "    console.log(\"✅ JWT saved to collection variable 'token'\");",
+                  "}",
+                  "if (res.user && res.user._id) {",
+                  "    pm.collectionVariables.set(\"myUserId\", res.user._id);",
+                  "    console.log(\"✅ myUserId saved:\", res.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "signup"
+              ]
+            },
+            "description": "Create a new user account.\n\n**Body (all required):**\n| Field | Type | Rule |\n| --- | --- | --- |\n| `fullName` | string | required |\n| `email` | string | required, must be unique |\n| `password` | string | required, min 6 characters |\n\nOn success the server hashes the password (bcrypt, 10 rounds), creates the user, and returns a **JWT (7d)**. The test script stores it in `{{token}}`."
+          },
+          "response": [
+            {
+              "name": "201 — User created successfully",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/signup",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "signup"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"User created successfully\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NjEyZjk4N2FiYzRlZTAwMTIzNDU2NzgiLCJpYXQiOjE3MTcyNTAwMDAsImV4cCI6MTcxNzg1NDgwMH0.abc123\",\n  \"user\": {\n    \"_id\": \"6612f987abc4ee0012345678\",\n    \"email\": \"testuser@example.com\",\n    \"fullName\": \"Test User\",\n    \"profilePic\": \"\",\n    \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "400 — Missing fields",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"testuser@example.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/signup",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "signup"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Email, password, and full name are required\"\n}"
+            },
+            {
+              "name": "400 — Email already registered",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/signup",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "signup"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Email already registered\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "",
+                  "// Auto-save token + user id for the rest of the collection",
+                  "if (res.token) {",
+                  "    pm.collectionVariables.set(\"token\", res.token);",
+                  "    console.log(\"✅ JWT saved to collection variable 'token'\");",
+                  "}",
+                  "if (res.user && res.user._id) {",
+                  "    pm.collectionVariables.set(\"myUserId\", res.user._id);",
+                  "    console.log(\"✅ myUserId saved:\", res.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticate an existing user.\n\n**Body (both required):** `email`, `password`.\n\nReturns a fresh **JWT (7d)** on success. The test script stores it in `{{token}}` automatically."
+          },
+          "response": [
+            {
+              "name": "200 — Login successful",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Login successful\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NjEyZjk4N2FiYzRlZTAwMTIzNDU2NzgiLCJpYXQiOjE3MTcyNTAwMDAsImV4cCI6MTcxNzg1NDgwMH0.abc123\",\n  \"user\": {\n    \"_id\": \"6612f987abc4ee0012345678\",\n    \"email\": \"testuser@example.com\",\n    \"fullName\": \"Test User\",\n    \"profilePic\": \"\",\n    \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "401 — Invalid credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"wrongpassword\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Invalid email or password\"\n}"
+            },
+            {
+              "name": "400 — Missing fields",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Email and password are required\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check Auth (current user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Returns the logged-in user\", function () {",
+                  "    pm.expect(res).to.have.property(\"_id\");",
+                  "    pm.expect(res).to.have.property(\"email\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "check"
+              ]
+            },
+            "description": "Verify the Bearer token and get the currently logged-in user. Used by the client on page refresh to restore the session.\n\n**Errors:**\n- `401` — `Unauthorized - No token provided` / `Invalid token` / `Token expired` / `Unauthorized - User not found`"
+          },
+          "response": [
+            {
+              "name": "200 — Authenticated user",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "check"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee0012345678\",\n  \"email\": \"testuser@example.com\",\n  \"fullName\": \"Test User\",\n  \"profilePic\": \"\",\n  \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:00:00.000Z\"\n}"
+            },
+            {
+              "name": "401 — No token provided",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "check"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Unauthorized - No token provided\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Full Name",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Updated Name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/fullname",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "fullname"
+              ]
+            },
+            "description": "Update the logged-in user's full name (used by the onboarding/profile flow).\n\n**Body:** `fullName` (required, cannot be blank after trim).\n\n**Errors:** `400` — Full name is required · `404` — User not found"
+          },
+          "response": [
+            {
+              "name": "200 — Profile updated successfully",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Updated Name\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/fullname",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "fullname"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee0012345678\",\n  \"email\": \"testuser@example.com\",\n  \"fullName\": \"Updated Name\",\n  \"profilePic\": \"\",\n  \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:05:00.000Z\",\n  \"message\": \"Profile updated successfully\"\n}"
+            },
+            {
+              "name": "400 — Full name is required",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"   \"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/fullname",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "fullname"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Full name is required\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profilePic\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/update-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "update-profile"
+              ]
+            },
+            "description": "Upload/update the profile picture.\n\n**Body:** `profilePic` (required) — a **base64 data URI** of the image (e.g. `data:image/png;base64,...`). The server uploads it to **Cloudinary** and stores the returned `secure_url` on the user.\n\n**Errors:** `400` — Profile pic is required · `500` — Cloudinary/upload failure"
+          },
+          "response": [
+            {
+              "name": "200 — Profile picture updated",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"profilePic\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/update-profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "update-profile"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee0012345678\",\n  \"email\": \"testuser@example.com\",\n  \"fullName\": \"Test User\",\n  \"profilePic\": \"https://res.cloudinary.com/demo/image/upload/v1717250000/profile.png\",\n  \"createdAt\": \"2026-09-29T10:00:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:06:00.000Z\"\n}"
+            },
+            {
+              "name": "400 — Profile pic is required",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/update-profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "update-profile"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Profile pic is required\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Log the current user out. Requires a valid Bearer token; the client clears the stored JWT afterwards."
+          },
+          "response": [
+            {
+              "name": "200 — Logged out successfully",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/logout",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Logged out successfully\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 Messages",
+      "description": "Messaging routes mounted at `/api/messages` (see `server/src/routes/message.route.js`). All routes are **protected**.\n\n| Method | Route | Purpose |\n| --- | --- | --- |\n| GET | `/api/messages/users` | Users for the sidebar (everyone except me) |\n| GET | `/api/messages/media` | All image/audio messages of mine, newest first |\n| GET | `/api/messages/:id` | Full conversation with user `:id` |\n| POST | `/api/messages/send/:id` | Send text/image/audio to user `:id` |\n\n💡 Before testing, set the `{{userId}}` collection variable to a real `_id` from **Get users for sidebar**.",
+      "item": [
+        {
+          "name": "Get users for sidebar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Returns an array of users without passwords\", function () {",
+                  "    pm.expect(res).to.be.an(\"array\");",
+                  "    if (res.length > 0) {",
+                  "        pm.expect(res[0]).to.not.have.property(\"password\");",
+                  "        console.log(\"💡 Tip: pick a partner _id and set the 'userId' collection variable, e.g.\", res[0]._id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/messages/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                "users"
+              ]
+            },
+            "description": "Get all users except the logged-in one (for the chat sidebar). Passwords are stripped server-side.\n\n**Response:** `User[]` — array of user objects (`_id`, `email`, `fullName`, `profilePic`, timestamps)."
+          },
+          "response": [
+            {
+              "name": "200 — Users list",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/messages/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "users"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"_id\": \"6612f987abc4ee0012345679\",\n    \"email\": \"alice@example.com\",\n    \"fullName\": \"Alice Sharma\",\n    \"profilePic\": \"https://res.cloudinary.com/demo/image/upload/alice.png\",\n    \"createdAt\": \"2026-09-28T09:00:00.000Z\",\n    \"updatedAt\": \"2026-09-28T09:00:00.000Z\"\n  },\n  {\n    \"_id\": \"6612f987abc4ee001234567a\",\n    \"email\": \"bob@example.com\",\n    \"fullName\": \"Bob Verma\",\n    \"profilePic\": \"\",\n    \"createdAt\": \"2026-09-28T09:30:00.000Z\",\n    \"updatedAt\": \"2026-09-28T09:30:00.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get media messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/messages/media",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                "media"
+              ]
+            },
+            "description": "Get every message that contains an **image or audio** attachment where the logged-in user is the sender **or** the receiver. Sorted newest first (powers the Media page).\n\n**Response:** `Message[]`"
+          },
+          "response": [
+            {
+              "name": "200 — Media messages",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/messages/media",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "media"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"_id\": \"6612f987abc4ee001234567b\",\n    \"senderId\": \"6612f987abc4ee0012345678\",\n    \"receiverId\": \"6612f987abc4ee0012345679\",\n    \"text\": \"\",\n    \"image\": \"https://res.cloudinary.com/demo/image/upload/v1717250000/screenshot.png\",\n    \"audio\": null,\n    \"audioDuration\": null,\n    \"status\": \"delivered\",\n    \"createdAt\": \"2026-09-29T10:10:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:10:01.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get messages (conversation)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/messages/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{userId}}",
+                  "description": "The _id of the user you are chatting with"
+                }
+              ]
+            },
+            "description": "Get the full conversation between the logged-in user and the user `:id` (messages in both directions).\n\n**Path param:** `id` — `_id` of the chat partner (uses `{{userId}}`).\n\n**Response:** `Message[]` sorted as stored (oldest → newest)."
+          },
+          "response": [
+            {
+              "name": "200 — Conversation messages",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/messages/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "{{userId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "[\n  {\n    \"_id\": \"6612f987abc4ee001234567c\",\n    \"senderId\": \"6612f987abc4ee0012345678\",\n    \"receiverId\": \"6612f987abc4ee0012345679\",\n    \"text\": \"Hey Alice! 👋\",\n    \"image\": null,\n    \"audio\": null,\n    \"audioDuration\": null,\n    \"status\": \"delivered\",\n    \"createdAt\": \"2026-09-29T10:11:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:11:00.000Z\"\n  },\n  {\n    \"_id\": \"6612f987abc4ee001234567d\",\n    \"senderId\": \"6612f987abc4ee0012345679\",\n    \"receiverId\": \"6612f987abc4ee0012345678\",\n    \"text\": \"Hi! Kaise ho?\",\n    \"image\": null,\n    \"audio\": null,\n    \"audioDuration\": null,\n    \"status\": \"read\",\n    \"createdAt\": \"2026-09-29T10:12:00.000Z\",\n    \"updatedAt\": \"2026-09-29T10:12:30.000Z\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Send message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Hello from Postman! 👋\",\n  \"image\": \"\",\n  \"audio\": \"\",\n  \"audioDuration\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages/send/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "messages",
+                "send",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{userId}}",
+                  "description": "The _id of the receiver"
+                }
+              ]
+            },
+            "description": "Send a message to user `:id`.\n\n**Body (all optional, send at least one of text/image/audio):**\n| Field | Type | Notes |\n| --- | --- | --- |\n| `text` | string | plain text message |\n| `image` | string | **base64 data URI** — uploaded to Cloudinary |\n| `audio` | string | **base64 data URI** — uploaded to Cloudinary as `video` resource in the `voice_messages` folder |\n| `audioDuration` | number | voice-note duration in seconds |\n\nIf the receiver is online (Socket.io), the message status becomes `delivered` and a `newMessage` event is emitted to them; otherwise it stays `sent` until they connect."
+          },
+          "response": [
+            {
+              "name": "201 — Message sent",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"text\": \"Hello from Postman! 👋\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/messages/send/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "send",
+                    "{{userId}}"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_id\": \"6612f987abc4ee001234567e\",\n  \"senderId\": \"6612f987abc4ee0012345678\",\n  \"receiverId\": \"6612f987abc4ee0012345679\",\n  \"text\": \"Hello from Postman! 👋\",\n  \"image\": null,\n  \"audio\": null,\n  \"audioDuration\": null,\n  \"status\": \"delivered\",\n  \"createdAt\": \"2026-09-29T10:13:00.000Z\",\n  \"updatedAt\": \"2026-09-29T10:13:00.000Z\"\n}"
+            },
+            {
+              "name": "401 — Unauthorized",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"text\": \"Hello from Postman! 👋\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/messages/send/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "messages",
+                    "send",
+                    "{{userId}}"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Unauthorized - No token provided\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tag": []
+}
