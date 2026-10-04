@@ -101,22 +101,6 @@ VITE_SOCKET_URL=http://localhost:5001
 
 ---
 
-## 🐳 Running with Docker
-
-You can run the entire application using Docker Compose:
-
-```bash
-docker-compose up --build
-```
-
-This will start:
-
-- **MongoDB** at `localhost:27017`
-- **Backend** at `localhost:5001`
-- **Frontend** at `localhost:3000`
-
----
-
 ## 📂 Project Structure
 
 ```text
@@ -133,7 +117,7 @@ AlgoChat/
 │   │   ├── models/
 │   │   ├── routes/
 │   │   └── lib/      # Core logic & DB config
-├── docker-compose.yml
+├── docs/             # Project documentation
 └── README.md
 ```
 
