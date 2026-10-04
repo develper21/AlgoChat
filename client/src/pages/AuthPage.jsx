@@ -26,7 +26,7 @@ export default function AuthPage() {
     try {
       await login(formData.email, formData.password);
       navigate("/");
-    } catch (error) {
+    } catch {
       // Error is already handled by the store
     }
   };
@@ -114,7 +114,7 @@ export default function AuthPage() {
           {/* Sign Up Link */}
           <div className="mt-6 text-center">
             <p className="text-base-content/60">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link to="/auth/sign-up" className="link link-primary font-semibold">
                 Sign up here
               </Link>
