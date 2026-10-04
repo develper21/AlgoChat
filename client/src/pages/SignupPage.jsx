@@ -46,7 +46,7 @@ export default function SignUpPage() {
     try {
       await signup(formData.email, formData.password, formData.fullName);
       navigate("/");
-    } catch (error) {
+    } catch {
       // Error is already handled by the store
     }
   };
