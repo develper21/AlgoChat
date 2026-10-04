@@ -21,7 +21,7 @@ Set up the development environment, repository, and core configuration.
 | 1.3 | Set up Git repository | High | ✅ Completed | GitHub remote |
 | 1.4 | Configure ESLint & Prettier | Medium | ✅ Completed | eslint.config.js |
 | 1.5 | Setup Express server | High | ✅ Completed | ESM, nodemon |
-| 1.6 | Docker compose (client+server+Mongo) | Low | ✅ Completed | render.yaml too |
+| 1.6 | ~~Docker compose (client+server+Mongo)~~ | Low | 🗑️ Removed | Not needed — local dev + Render node runtime |
 
 ## ✅ Phase 2: Authentication
 
@@ -72,7 +72,7 @@ Ship the MVP to production.
 | # | Task | Priority | Status | Notes |
 | --- | --- | --- | --- | --- |
 | 5.1 | Env configs (.env.example) | Medium | ✅ Completed | Both sides |
-| 5.2 | Nginx + Dockerfiles | Low | ✅ Completed | client serves static |
+| 5.2 | ~~Nginx + Dockerfiles~~ | Low | 🗑️ Removed | Docker dropped; production static serving instead |
 | 5.3 | Production static serving | Medium | ⬜ Planned | server serves client/dist |
 | 5.4 | Deploy on Render | Medium | ⬜ Planned | render.yaml ready |
 | 5.5 | Final QA + Postman regression | Medium | ⬜ Planned | Use postman collections |

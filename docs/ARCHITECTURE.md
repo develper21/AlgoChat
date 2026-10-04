@@ -47,7 +47,8 @@ Technologies used in the project and their purpose:
 | Auth | JWT (jsonwebtoken) + bcryptjs | Token auth & password hashing |
 | Media | Cloudinary | Image & audio (voice note) storage |
 | Dev | Nodemon, Vite | DX & fast reload |
-| Deployment | Docker / Render | Containerization & hosting |
+| Deployment | Render (render.yaml) | Node hosting for API + static UI |
+| CI | GitHub Actions (.github/workflows/ci.yml) | Lint, test, build on push/PR |
 | Version Control | Git & GitHub | Source code management |
 
 ---
@@ -79,7 +80,7 @@ algochat/
 │       ├── routes/            # auth.route, message.route
 │       └── index.js           # Server entry (REST + static in prod)
 ├── docs/                      # Project documentation
-├── docker-compose.yml
+├── render.yaml                # Render deploy config (Node runtime)
 └── README.md
 ```
 
@@ -134,7 +135,7 @@ io.emit("getOnlineUsers", [...ids]) → all clients update sidebar dots
 2. **Base64 → Cloudinary uploads** — keeps the REST API simple (no multipart parsing); the 50mb JSON limit accommodates large images/audio.
 3. **Zustand over Redux** — minimal boilerplate for a mid-size app; separate stores for auth, chat, and theme.
 4. **Socket user map on server** — `userSocketMap` gives O(1) lookup of a user's socket for direct event delivery.
-5. **Single repo, client/server folders** — one clone runs both sides; docker-compose ties them with MongoDB.
+5. **Single repo, client/server folders** — one clone runs both sides; MongoDB local ya Atlas se connect hota hai.
 6. **Production static serving** — in production the Express app serves `client/dist`, so one deployment serves both API and UI.
 
 ---
