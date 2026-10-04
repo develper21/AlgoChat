@@ -87,7 +87,7 @@ export const useAuthStore = create((set, get) => ({
       set({ authUser: null });
       removeAuthToken();
       toast.success("Logged out successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to log out");
     }
   },
