@@ -1,70 +1,142 @@
-name: CI - Pipline
+# ============================================================
+# Workflow Name
+# GitHub Actions dashboard mein isi naam se workflow dikhega.
+# ============================================================
+name: CI - Pipeline
 
+# ============================================================
+# Workflow Triggers
+# Decide karte hain ki pipeline kab automatically run hogi.
+# ============================================================
 on:
+  # Jab main branch par koi commit push hota hai.
   push:
     branches: [main]
+
+  # Jab main branch ko target karte hue Pull Request create
+  # ya update hota hai.
   pull_request:
     branches: [main]
 
-# Same branch pe naye push aaye to purana run cancel karo (runner minutes bachao)
+# ============================================================
+# Concurrency Control
+# Same branch ke liye naya workflow start hone par purana
+# in-progress workflow cancel ho sakta hai.
+# Isse unnecessary GitHub Actions runner minutes bach sakte hain.
+# ============================================================
 concurrency:
+  # Har Git reference ke liye alag concurrency group.
   group: ci-${{ github.ref }}
+
+  # Naya run aane par usi group ka purana run cancel karo.
   cancel-in-progress: true
 
+# ============================================================
+# Jobs
+# Server aur Client ke CI checks alag-alag jobs mein run honge.
+# GitHub Actions in jobs ko parallel execute kar sakta hai.
+# ============================================================
 jobs:
+
+  # ==========================================================
+  # SERVER JOB
+  # Server code ke dependencies install, lint aur tests run karo.
+  # ==========================================================
   server:
+    # GitHub Actions UI mein job ka display name.
     name: Server — install → lint → test
+
+    # Job GitHub ke hosted Ubuntu runner par execute hoga.
     runs-on: ubuntu-latest
+
+    # Is job ke sabhi run commands server directory ke andar
+    # execute honge.
     defaults:
       run:
         working-directory: server
 
     steps:
+      # Repository ka code runner par checkout karo.
+      # Iske bina runner ko project files available nahi hongi.
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Node.js environment configure karo.
+      # Node.js 22 server application ke commands execute karega.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+          # npm dependencies ke download/cache ko optimize karo.
           cache: npm
+
+          # Server ke lockfile ko dependency cache key ke liye use karo.
           cache-dependency-path: server/package-lock.json
 
+      # package-lock.json ke according exact dependency versions
+      # install karo.
+      # npm ci CI environments ke liye suitable hai.
       - name: Install dependencies (npm ci)
         run: npm ci
 
+      # ESLint ya configured lint tool se code quality checks run karo.
+      # Agar lint fail hota hai, toh job fail ho jayegi.
       - name: Lint
         run: npm run lint
 
+      # Server ke automated tests execute karo.
+      # Agar tests fail hote hain, toh job fail ho jayegi.
       - name: Test
         run: npm test
 
+  # ==========================================================
+  # CLIENT JOB
+  # Client code ke dependencies install, lint, tests aur build run karo.
+  # ==========================================================
   client:
+    # GitHub Actions UI mein job ka display name.
     name: Client — install → lint → test → build
+
+    # Job GitHub ke hosted Ubuntu runner par execute hoga.
     runs-on: ubuntu-latest
+
+    # Is job ke sabhi run commands client directory ke andar
+    # execute honge.
     defaults:
       run:
         working-directory: client
 
     steps:
+      # Repository ka code runner par checkout karo.
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Client ke liye Node.js 22 environment configure karo.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+          # npm dependency cache enable karo.
           cache: npm
+
+          # Client ke lockfile ko cache dependency ke roop mein use karo.
           cache-dependency-path: client/package-lock.json
 
+      # Client dependencies ko package-lock.json ke according install karo.
       - name: Install dependencies (npm ci)
         run: npm ci
 
+      # Client code par lint checks execute karo.
       - name: Lint
         run: npm run lint
 
+      # Client ke automated tests execute karo.
       - name: Test
         run: npm test
 
+      # Client application ka production build generate karo.
+      # Isse build-time errors detect karne mein madad milti hai.
       - name: Build
         run: npm run build
